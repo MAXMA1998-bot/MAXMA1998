@@ -1,12 +1,14 @@
 import os
 import telebot
-from telebot import types
-from flask import Flask
-from threading import Thread
+import re # استيراد مكتبة التنظيف
 
 TOKEN = os.environ.get('TOKEN')
-MY_CHAT_ID = '438077185' # تأكد من أن هذا الرقم هو رقمك تماماً
+# تنظيف الرقم من أي رموز خفية أو مسافات أو اتجاهات نص
+raw_id = "438077185" 
+MY_CHAT_ID = re.sub(r'\D', '', raw_id) 
+
 bot = telebot.TeleBot(TOKEN)
+
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
