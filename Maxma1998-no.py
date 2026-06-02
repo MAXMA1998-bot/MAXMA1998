@@ -1,6 +1,10 @@
 import os
 import telebot
-import re # استيراد مكتبة التنظيف
+from telebot import types
+from flask import Flask  # هذا السطر ضروري جداً
+from threading import Thread
+import re
+
 
 TOKEN = os.environ.get('TOKEN')
 # تنظيف الرقم من أي رموز خفية أو مسافات أو اتجاهات نص
