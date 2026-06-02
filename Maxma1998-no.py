@@ -10,7 +10,7 @@ bot = telebot.TeleBot(TOKEN)
 # كود الترحيب
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(message, "أهلاً بك في البوت! أنا أعمل هنا لخدمتك 24/7.")
+    bot.reply_to(message, "أهلاً بك في MAXMA 👋.")
 
 # كود الاستيقاظ الدائم (Keep Alive)
 app = Flask('')
