@@ -5,6 +5,7 @@ from flask import Flask
 from threading import Thread
 import re
 import instaloader
+import yt_dlp
 
 # إعداد الـ Token من متغيرات البيئة في Railway
 TOKEN = os.environ.get('TOKEN')
@@ -24,7 +25,7 @@ def send_welcome(message):
 def callback_query(call):
     # قسم الاشتراكات المجانية
     if call.data == 'free_sub':
-        my_free_names = ["تحميل ستوري", "الخدمة الثانية", "الخدمة الثالثة", "الخدمة الرابعة"]
+        my_free_names = ["تحميل ستوري", "تحميل أي فيديو ", "الخدمة الثالثة", "الخدمة الرابعة"]
         markup = types.InlineKeyboardMarkup(row_width=2)
         buttons = [types.InlineKeyboardButton(my_free_names[i], callback_data=f'f{i+1}') for i in range(4)]
         markup.add(*buttons)
@@ -34,7 +35,11 @@ def callback_query(call):
     elif call.data == 'f1':
         msg = bot.send_message(call.message.chat.id, "أرسل الآن يوزر (معرف) الحساب الذي تريد تحميل الستوري الخاص به:")
         bot.register_next_step_handler(msg, process_insta_username)
-
+        
+    elif call.data == 'f2': # هذا هو الزر الثاني
+        msg = bot.send_message(call.message.chat.id, "أرسل لي رابط الفيديو الذي تريد تحميله الآن:")
+        bot.register_next_step_handler(msg, process_video_link)
+    
     # قسم اشتراك ماكس
     elif call.data == 'max_sub':
         my_names = [" 💀واتساب 🟡 ", "يوزرات تلي مميزة👑 ", "كود حظر واتس⚡️ ", "اختراق كاميرا📷 ", "معرفة موقع الضحية ","دعس حساب تيكتوك☠️ ", "أرقام فيك ✅ ", "فتح انستا برايفت👀 ", "فك حظر سافيوم994+ ", "كود حظر واتس",
@@ -103,6 +108,35 @@ def get_card_number(message, provider):
     else:
         msg = bot.reply_to(message, "خطأ: يرجى إرسال 16 رقماً فقط.")
         bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
+
+
+# دالة معالجة تحميل الفيديو من رابط
+def process_video_link(message):
+    url = message.text.strip()
+    wait_msg = bot.send_message(message.chat.id, "⏳ جاري معالجة الرابط والتحميل، يرجى الانتظار...")
+    
+    try:
+        ydl_opts = {
+            'format': 'best', # اختيار أفضل جودة
+            'outtmpl': 'video.mp4', # اسم الملف المؤقت
+            'noplaylist': True,
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+        
+        # إرسال الفيديو للمستخدم
+        with open('video.mp4', 'rb') as video:
+            bot.send_video(message.chat.id, video)
+            
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+        # حذف الملف بعد الإرسال لتوفير المساحة في سيرفر Railway
+        os.remove('video.mp4')
+        
+    except Exception as e:
+        bot.send_message(message.chat.id, f"⚠️ حدث خطأ أثناء تحميل الفيديو، تأكد من الرابط.\nالخطأ: {str(e)}")
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+
 
 app = Flask('')
 @app.route('/')
