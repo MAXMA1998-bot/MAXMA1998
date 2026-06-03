@@ -24,10 +24,17 @@ def send_welcome(message):
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     if call.data == 'free_sub':
-        # ... (نفس الكود الخاص بك للمجاني) ...
+        # 1. ضع هنا الأسماء الأربعة التي تريدها
+        my_free_names = ["الاسم الأول", "الاسم الثاني", "الاسم الثالث", "الاسم الرابع"]
+        
+        # 2. إنشاء الأزرار بناءً على القائمة المخصصة
         markup = types.InlineKeyboardMarkup(row_width=2)
-        markup.add(*[types.InlineKeyboardButton(f"مجاني {i}", callback_data=f'f{i}') for i in [1,2,3,5]])
+        # نقوم بإنشاء callback_data مثل f1, f2, f3, f4 لكل زر
+        buttons = [types.InlineKeyboardButton(my_free_names[i], callback_data=f'f{i+1}') for i in range(4)]
+        markup.add(*buttons)
+        
         bot.edit_message_text("اختر الخدمة المجانية:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+
     
     elif call.data == 'max_sub':
         # هنا قائمة الأسماء المخصصة (ضع الأسماء التي تريدها بالترتيب)
