@@ -1,3 +1,4 @@
 pytelegramBotAPI
 flask
 instaloader
+yt-dlp
