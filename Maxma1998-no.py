@@ -64,24 +64,34 @@ def callback_query(call):
 
 # دالة معالجة تحميل الستوري
 def process_insta_username(message):
-    username = message.text.strip()
+    username = message.text.replace('@', '').strip() # إزالة أي @ وإزالة المسافات
     wait_msg = bot.send_message(message.chat.id, f"🔍 جاري البحث عن ستوري {username}...")
     try:
+        # إضافة User-Agent لزيادة فرصة القبول من إنستجرام
+        L.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        
         profile = instaloader.Profile.from_username(L.context, username)
         stories = L.get_stories(userids=[profile.userid])
+        
         count = 0
         for story in stories:
             for item in story.get_items():
                 count += 1
                 if item.is_video:
-                    bot.send_video(message.chat.id, item.video_url, caption=f"ستوري {count}")
+                    bot.send_video(message.chat.id, item.video_url, caption=f"ستوري رقم {count}")
                 else:
-                    bot.send_photo(message.chat.id, item.url, caption=f"ستوري {count}")
+                    bot.send_photo(message.chat.id, item.url, caption=f"ستوري رقم {count}")
+        
         if count == 0:
             bot.send_message(message.chat.id, "لم يتم العثور على أي ستوري حالياً.")
+            
         bot.delete_message(message.chat.id, wait_msg.message_id)
+
     except Exception as e:
-        bot.send_message(message.chat.id, f"⚠️ حدث خطأ: تأكد أن الحساب عام واليوزر صحيح.")
+        # هنا أضفنا طباعة الخطأ في الـ Log لنعرف السبب الحقيقي إذا فشل
+        print(f"Error: {e}")
+        bot.send_message(message.chat.id, f"⚠️ حدث خطأ: تأكد أن الحساب عام واليوزر صحيح.\nتفاصيل: {str(e)[:50]}")
+
 
 # دالة معالجة أرقام البطاقات
 def get_card_number(message, provider):
