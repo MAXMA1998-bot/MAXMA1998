@@ -4,3 +4,4 @@ instaloader
 yt-dlp
 rembg
 Pillow
+onnxruntime
