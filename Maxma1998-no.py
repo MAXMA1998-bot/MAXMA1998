@@ -46,7 +46,7 @@ def callback_query(call):
         msg = bot.send_message(call.message.chat.id, "أرسل رابط الفيديو الذي تريد استخراج الصوت منه:")
         bot.register_next_step_handler(msg, process_audio_conversion)
 
-        elif call.data == 'f4': # الزر الرابع
+    elif call.data == 'f4': # الزر الرابع
         msg = bot.send_message(call.message.chat.id, "📸 أرسل لي الصورة التي تريد إزالة خلفيتها الآن:")
         bot.register_next_step_handler(msg, process_remove_bg)
 
