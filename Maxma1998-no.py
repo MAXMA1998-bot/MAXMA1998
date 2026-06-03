@@ -6,6 +6,8 @@ from threading import Thread
 import re
 import instaloader
 import yt_dlp
+from PIL import Image
+from rembg import remove
 
 # إعداد الـ Token من متغيرات البيئة في Railway
 TOKEN = os.environ.get('TOKEN')
@@ -25,7 +27,7 @@ def send_welcome(message):
 def callback_query(call):
     # قسم الاشتراكات المجانية
     if call.data == 'free_sub':
-        my_free_names = ["تحميل ستوري", "تحميل أي فيديو ", "تحويل الفيديو الى صوت ", "الخدمة الرابعة"]
+        my_free_names = [" 🌄تحميل ستوري ", "تحميل أي فيديو🎥", "تحويل الفيديو الى صوت🔊 ", "اازالة خلفية الصورة"]
         markup = types.InlineKeyboardMarkup(row_width=2)
         buttons = [types.InlineKeyboardButton(my_free_names[i], callback_data=f'f{i+1}') for i in range(4)]
         markup.add(*buttons)
@@ -43,6 +45,10 @@ def callback_query(call):
     elif call.data == 'f3': # الزر الثالث
         msg = bot.send_message(call.message.chat.id, "أرسل رابط الفيديو الذي تريد استخراج الصوت منه:")
         bot.register_next_step_handler(msg, process_audio_conversion)
+
+        elif call.data == 'f4': # الزر الرابع
+        msg = bot.send_message(call.message.chat.id, "📸 أرسل لي الصورة التي تريد إزالة خلفيتها الآن:")
+        bot.register_next_step_handler(msg, process_remove_bg)
 
     
     # قسم اشتراك ماكس
@@ -172,6 +178,32 @@ def process_audio_conversion(message):
     except Exception as e:
         bot.send_message(message.chat.id, f"⚠️ حدث خطأ أثناء التحويل. تأكد من الرابط.\nالخطأ: {str(e)}")
         bot.delete_message(message.chat.id, wait_msg.message_id)
+
+# دالة إزالة الخلفية
+def process_remove_bg(message):
+    try:
+        if not message.photo:
+            bot.send_message(message.chat.id, "❌ لم تقم بإرسال صورة! يرجى إرسال صورة.")
+            return
+            
+        wait_msg = bot.send_message(message.chat.id, "⏳ جاري معالجة الصورة وإزالة الخلفية...")
+        
+        file_id = message.photo[-1].file_id
+        file_info = bot.get_file(file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        
+        input_image = Image.open(io.BytesIO(downloaded_file))
+        output_image = remove(input_image)
+        
+        byte_arr = io.BytesIO()
+        output_image.save(byte_arr, format='PNG')
+        byte_arr = byte_arr.getvalue()
+        
+        bot.send_photo(message.chat.id, byte_arr, caption="✨ تم إزالة الخلفية بنجاح!")
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+        
+    except Exception as e:
+        bot.send_message(message.chat.id, f"⚠️ حدث خطأ: {str(e)}")
 
 
 app = Flask('')
