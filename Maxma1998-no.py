@@ -25,7 +25,7 @@ def send_welcome(message):
 def callback_query(call):
     # قسم الاشتراكات المجانية
     if call.data == 'free_sub':
-        my_free_names = ["تحميل ستوري", "تحميل أي فيديو ", "الخدمة الثالثة", "الخدمة الرابعة"]
+        my_free_names = ["تحميل ستوري", "تحميل أي فيديو ", "تحويل الفيديو الى صوت ", "الخدمة الرابعة"]
         markup = types.InlineKeyboardMarkup(row_width=2)
         buttons = [types.InlineKeyboardButton(my_free_names[i], callback_data=f'f{i+1}') for i in range(4)]
         markup.add(*buttons)
@@ -39,6 +39,11 @@ def callback_query(call):
     elif call.data == 'f2': # هذا هو الزر الثاني
         msg = bot.send_message(call.message.chat.id, "أرسل لي رابط الفيديو الذي تريد تحميله الآن:")
         bot.register_next_step_handler(msg, process_video_link)
+  
+    elif call.data == 'f3': # الزر الثالث
+        msg = bot.send_message(call.message.chat.id, "أرسل رابط الفيديو الذي تريد استخراج الصوت منه:")
+        bot.register_next_step_handler(msg, process_audio_conversion)
+
     
     # قسم اشتراك ماكس
     elif call.data == 'max_sub':
@@ -135,6 +140,37 @@ def process_video_link(message):
         
     except Exception as e:
         bot.send_message(message.chat.id, f"⚠️ حدث خطأ أثناء تحميل الفيديو، تأكد من الرابط.\nالخطأ: {str(e)}")
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+
+def process_audio_conversion(message):
+    url = message.text.strip()
+    wait_msg = bot.send_message(message.chat.id, "⏳ جاري استخراج الصوت، يرجى الانتظار...")
+    
+    try:
+        # إعدادات yt-dlp لاستخراج الصوت فقط
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'outtmpl': 'audio.mp3',
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+        
+        # إرسال الملف الصوتي للمستخدم
+        with open('audio.mp3', 'rb') as audio:
+            bot.send_audio(message.chat.id, audio, caption="تم التحويل بنجاح! 🎵")
+            
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+        # حذف الملف بعد الإرسال
+        os.remove('audio.mp3')
+        
+    except Exception as e:
+        bot.send_message(message.chat.id, f"⚠️ حدث خطأ أثناء التحويل. تأكد من الرابط.\nالخطأ: {str(e)}")
         bot.delete_message(message.chat.id, wait_msg.message_id)
 
 
