@@ -1,4 +1,6 @@
 import os
+import ffmpeg_downloader as ffdl
+ffdl.install()
 import telebot
 from telebot import types
 from flask import Flask
