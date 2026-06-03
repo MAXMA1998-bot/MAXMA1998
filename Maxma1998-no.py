@@ -24,19 +24,32 @@ def send_welcome(message):
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     if call.data == 'free_sub':
+        # ... (نفس الكود الخاص بك للمجاني) ...
         markup = types.InlineKeyboardMarkup(row_width=2)
         markup.add(*[types.InlineKeyboardButton(f"مجاني {i}", callback_data=f'f{i}') for i in [1,2,3,5]])
         bot.edit_message_text("اختر الخدمة المجانية:", call.message.chat.id, call.message.message_id, reply_markup=markup)
     
     elif call.data == 'max_sub':
+        # هنا قائمة الأسماء المخصصة (ضع الأسماء التي تريدها بالترتيب)
+        my_names = ["سيرفر 1", "برو 2", "تيربو 3", "مميز 4", "خارق 5", 
+                    "اسم 6", "اسم 7", "اسم 8", "اسم 9", "اسم 10",
+                    "اسم 11", "اسم 12", "اسم 13", "اسم 14", "اسم 15",
+                    "اسم 16", "اسم 17", "اسم 18", "اسم 19", "نهاية 20"]
+        
         markup = types.InlineKeyboardMarkup(row_width=2)
-        markup.add(*[types.InlineKeyboardButton(f"ماكس {i}", callback_data=f'max_{i}') for i in range(1, 21)])
+        # إنشاء الأزرار باستخدام القائمة
+        buttons = [types.InlineKeyboardButton(my_names[i], callback_data=f'max_{i+1}') for i in range(20)]
+        markup.add(*buttons)
         bot.edit_message_text("اختر خدمة ماكس المطلوبة:", call.message.chat.id, call.message.message_id, reply_markup=markup)
     
     elif call.data.startswith('max_'):
+        # ... (باقي الكود الخاص بك كما هو) ...
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("تفعيل ماكس ✨", callback_data='activate_max'))
         bot.edit_message_text("عذراً، أنت غير مشترك في خطة ماكس ✨", call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+    # ... (بقية الدوال كما هي)
+
 
     elif call.data == 'activate_max':
         markup = types.InlineKeyboardMarkup(row_width=2)
