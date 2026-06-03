@@ -2,3 +2,5 @@ pytelegramBotAPI
 flask
 instaloader
 yt-dlp
+rembg
+Pillow
