@@ -67,7 +67,7 @@ def callback_query(call):
         msg = bot.send_message(call.message.chat.id, "أرسل الآن يوزر (معرف) الحساب الذي تريد تحميل الستوري الخاص به:")
         bot.register_next_step_handler(msg, process_insta_username)
         
-        elif call.data == 'f2': 
+    elif call.data == 'f2': 
         msg = bot.send_message(call.message.chat.id, "أرسل رابط الفيديو (إنستا/فيس/يوتيوب):")
         bot.register_next_step_handler(msg, process_universal_video)
 
