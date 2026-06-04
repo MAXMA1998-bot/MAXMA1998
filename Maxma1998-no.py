@@ -147,9 +147,9 @@ def process_video_link(message):
     wait_msg = bot.send_message(message.chat.id, "⏳ جاري التحميل...")
     try:
         # كود التحميل
-        ydl_opts = {'format': 'best', 'outtmpl': 'video.mp4', 'noplaylist': True}
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl: 
-            ydl.download([url])
+ydl_opts = {    'format': 'best', 'outtmpl': 'video.mp4','noplaylist': True, 'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36', 'geo_bypass': True,
+    'quiet': True,
+}
         
         # إرسال الفيديو للمستخدم
         with open('video.mp4', 'rb') as video: 
