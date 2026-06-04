@@ -1,8 +1,8 @@
 pytelegramBotAPI
+requests
 flask
 instaloader
 yt-dlp
 rembg
 Pillow
 onnxruntime
-requests
