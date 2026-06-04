@@ -155,10 +155,10 @@ def process_to_pdf(message):
         bot.send_message(message.chat.id, f"⚠️ حدث خطأ: {str(e)}")
 
 
-# دالة التحقق من صحة الرابط (فلترة الروابط الملغمة)
+# دالة التحقق من أمان الرابط
 def is_safe_link(url):
-    # يسمح فقط بروابط إنستجرام وفيسبوك ويوتيوب
-    allowed_domains = ['instagram.com', 'facebook.com', 'fb.watch', 'youtube.com', 'youtu.be']
+    # نحدد المواقع المسموح التحميل منها فقط
+    allowed_domains = ['instagram.com', 'facebook.com', 'fb.watch', 'youtube.com', 'youtu.be', 'tiktok.com']
     return any(domain in url for domain in allowed_domains)
 
 def process_universal_video(message):
@@ -166,27 +166,27 @@ def process_universal_video(message):
     
     url = message.text.strip()
     
-    # حماية المستوى الثاني: منع الروابط غير المعروفة
+    # حماية المستوى الثاني: فحص الرابط قبل التنفيذ
     if not is_safe_link(url):
-        bot.send_message(message.chat.id, "⚠️ الرابط غير مدعوم أو غير آمن. يرجى إرسال رابط إنستجرام أو فيسبوك أو يوتيوب فقط.")
+        bot.send_message(message.chat.id, "⚠️ الرابط غير مدعوم أو غير آمن. يرجى إرسال رابط إنستا/فيس/يوتيوب فقط.")
         return
         
-    wait_msg = bot.send_message(message.chat.id, "⏳ جاري المعالجة والتحميل...")
+    wait_msg = bot.send_message(message.chat.id, "⏳ جاري المعالجة.. يرجى الانتظار.")
     
     try:
-        # استخدام Cobalt API لأنه يدعم إنستا وفيسبوك ويوتيوب بكفاءة عالية
+        # استخدام API خارجي (Cobalt) لتحويل الرابط إلى فيديو مباشر
         api_url = "https://api.cobalt.tools/api/json"
-        payload = {"url": url, "vCodec": "h264"}
+        payload = {"url": url, "vCodec": "h264", "vQuality": "720"}
         headers = {"Accept": "application/json", "Content-Type": "application/json"}
         
         response = requests.post(api_url, json=payload, headers=headers).json()
         
         if response.get("status") == "success":
             video_url = response.get("url")
-            bot.send_video(message.chat.id, video_url, caption="✅ تم التحميل بنجاح بواسطة ✨ 𝓜𝓐𝓧 𝓑𝓞𝓞𝓣 ✨")
+            bot.send_video(message.chat.id, video_url, caption="✨ تم التحميل بنجاح عبر 𝓜𝓐𝓧 𝓑𝓞𝓞𝓣")
             bot.delete_message(message.chat.id, wait_msg.message_id)
         else:
-            bot.send_message(message.chat.id, "⚠️ فشل التحميل: تأكد أن الحساب عام (Public) والرابط صحيح.")
+            bot.send_message(message.chat.id, "⚠️ فشل التحميل: تأكد أن الرابط عام وليس برايفت.")
             bot.delete_message(message.chat.id, wait_msg.message_id)
             
     except Exception as e:
