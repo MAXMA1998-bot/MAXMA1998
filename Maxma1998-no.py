@@ -28,7 +28,7 @@ def send_welcome(message):
 def callback_query(call):
     # قسم الاشتراكات المجانية
     if call.data == 'free_sub':
-        my_free_names = [" pdfتحميل ستوري ", "تحميل أي فيديو🎥", "تحويل الفيديو الى صوت🔊 ", "تحويل صورة الى "]
+        my_free_names = ["تحميل ستوري ", "تحميل أي فيديو🎥", "تحويل الفيديو الى صوت🔊 ", " تحويل الصورة الى pdf📄 "]
         markup = types.InlineKeyboardMarkup(row_width=2)
         buttons = [types.InlineKeyboardButton(my_free_names[i], callback_data=f'f{i+1}') for i in range(4)]
         markup.add(*buttons)
