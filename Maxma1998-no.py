@@ -146,10 +146,24 @@ def process_video_link(message):
         
     wait_msg = bot.send_message(message.chat.id, "⏳ جاري التحميل...")
     try:
-        # استخدام shlex.quote لحماية إضافية إذا كنت ستستخدم أوامر نظام
+        # كود التحميل
         ydl_opts = {'format': 'best', 'outtmpl': 'video.mp4', 'noplaylist': True}
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl: ydl.download([url])
-        # ... بقية الكود
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl: 
+            ydl.download([url])
+        
+        # إرسال الفيديو للمستخدم
+        with open('video.mp4', 'rb') as video: 
+            bot.send_video(message.chat.id, video)
+            
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+        os.remove('video.mp4') # حذف الملف بعد الإرسال
+        
+    except Exception as e:
+        # هذا الجزء هو الذي كان مفقوداً ويسبب الخطأ!
+        bot.send_message(message.chat.id, f"⚠️ حدث خطأ أثناء التحميل: {str(e)}")
+        if os.path.exists('video.mp4'):
+            os.remove('video.mp4')
+
 
 
 def process_to_pdf(message):
