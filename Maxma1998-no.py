@@ -1,223 +1,100 @@
 import os
 import telebot
-from telebot import types‏
-from flask import Flask‏
-from threading import Thread
-import re
-import instaloader
-import yt_dlp
+import logging
+import time
+import threading
+import requests
 import io
+from flask import Flask
+from threading import Thread
+from telebot import types
 from PIL import Image
 from rembg import remove
 
-# إعداد الـ Token من متغيرات البيئة في Railway
-‏TOKEN = os.environ.get('TOKEN')
-‏bot = telebot.TeleBot(TOKEN)
+# --- إعدادات الاحترافية ---
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+TOKEN = os.environ.get('TOKEN')
+ADMIN_ID = os.environ.get('ADMIN_ID', '438077185')
+bot = telebot.TeleBot(TOKEN)
 
-# تهيئة انستالودر
-‏L = instaloader.Instaloader(download_videos=True, download_pictures=True, save_metadata=False)
+# نظام حماية من الضغط (Rate Limiting)
+user_last_call = {}
+def is_spaming(user_id):
+    last_time = user_last_call.get(user_id, 0)
+    if time.time() - last_time < 2: return True
+    user_last_call[user_id] = time.time()
+    return False
 
-‏@bot.message_handler(commands=['start'])
-‏def send_welcome(message):
-‏    markup = types.InlineKeyboardMarkup()
-‏    markup.add(types.InlineKeyboardButton("الاشتراك المجاني", callback_data='free_sub'),
-‏               types.InlineKeyboardButton("اشتراك ماكس ✨", callback_data='max_sub'))
-‏    bot.send_message(message.chat.id, "أهلاً بك في ✨ 𝓜𝓐𝓧 𝓑𝓞𝓞𝓣 ✨", reply_markup=markup)
-
-‏@bot.callback_query_handler(func=lambda call: True)
-
-‏def callback_query(call):
-    # قسم الاشتراكات المجانية
-‏    if call.data == 'free_sub':
-‏        my_free_names = ["تحميل ستوري ", "تحميل أي فيديو🎥", "تحويل الفيديو الى صوت🔊 ", " تحويل الصورة الى pdf📄 "]
-‏        markup = types.InlineKeyboardMarkup(row_width=2)
-‏        buttons = [types.InlineKeyboardButton(my_free_names[i], callback_data=f'f{i+1}') for i in range(4)]
-‏        markup.add(*buttons)
-‏        bot.edit_message_text("اختر الخدمة المجانية:", call.message.chat.id, call.message.message_id, reply_markup=markup)
-
-    # معالجة الزر الأول (تحميل الستوري)
-‏    elif call.data == 'f1':
-‏        msg = bot.send_message(call.message.chat.id, "أرسل الآن يوزر (معرف) الحساب الذي تريد تحميل الستوري الخاص به:")
-‏        bot.register_next_step_handler(msg, process_insta_username)
-        
-‏    elif call.data == 'f2': # هذا هو الزر الثاني
-‏        msg = bot.send_message(call.message.chat.id, "أرسل لي رابط الفيديو الذي تريد تحميله الآن:")
-‏        bot.register_next_step_handler(msg, process_video_link)
-  
-‏    elif call.data == 'f3': # الزر الثالث
-‏        msg = bot.send_message(call.message.chat.id, "أرسل رابط الفيديو الذي تريد استخراج الصوت منه:")
-‏        bot.register_next_step_handler(msg, process_audio_conversion)
-
-‏    elif call.data == 'f4': # الزر الرابع
-‏        msg = bot.send_message(call.message.chat.id, "📄 أرسل الصورة التي تريد تحويلها إلى PDF:")
-‏        bot.register_next_step_handler(msg, process_to_pdf)
-
-
+# --- دالة التحميل الشاملة (API) ---
+def process_universal_video(message):
+    if is_spaming(message.chat.id): return
+    url = message.text.strip()
     
-    # قسم اشتراك ماكس
-‏    elif call.data == 'max_sub':
-‏        my_names = [" 💀واتساب 🟡 ", "يوزرات تلي مميزة👑 ", "كود حظر واتس⚡️ ", "اختراق كاميرا📷 ", "معرفة موقع الضحية ","دعس حساب تيكتوك☠️ ", "أرقام فيك ✅ ", "فتح انستا برايفت👀 ", "فك حظر سافيوم994+ ", "كود حظر واتس",
-                    "مزايا انستا ✨", "تلغيم رابط🌎 ", "ببجي🎮 ", "رشق انستا✅ ", "تفعيل التطبيقات برو ",
-                    " 📱بليلردو لانهائي8 ", "اداة تيكتوك ترول ", "ازالة الاعلانات📢 ", "ارقام مفعلة حقيقيه✅", "تطبيقات ايفون برو "]
-        
-‏        markup = types.InlineKeyboardMarkup(row_width=2)
-‏        buttons = [types.InlineKeyboardButton(my_names[i], callback_data=f'max_{i+1}') for i in range(20)]
-‏        markup.add(*buttons)
-‏        bot.edit_message_text("اختر خدمة ماكس المطلوبة:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+    # حماية: فلترة الروابط
+    if not any(d in url for d in ['instagram.com', 'facebook.com', 'youtube.com', 'youtu.be', 'tiktok.com']):
+        bot.send_message(message.chat.id, "⚠️ رابط غير مدعوم.")
+        return
+
+    wait_msg = bot.send_message(message.chat.id, "⏳ جاري التحميل...")
     
-‏    elif call.data.startswith('max_'):
-‏        markup = types.InlineKeyboardMarkup()
-‏        markup.add(types.InlineKeyboardButton("تفعيل ماكس ✨", callback_data='activate_max'))
-‏        bot.edit_message_text("عذراً، أنت غير مشترك في خطة ماكس ✨", call.message.chat.id, call.message.message_id, reply_markup=markup)
-
-‏    elif call.data == 'activate_max':
-‏        markup = types.InlineKeyboardMarkup(row_width=2)
-‏        markup.add(types.InlineKeyboardButton("🔴 Asiacell", callback_data='provider_asia'),
-‏                   types.InlineKeyboardButton("🔵 Zain", callback_data='provider_zain'))
-‏        bot.edit_message_text("اختر مزود الخدمة:", call.message.chat.id, call.message.message_id, reply_markup=markup)
-
-‏    elif call.data.startswith('provider_'):
-‏        provider = "آسياسيل" if call.data == 'provider_asia' else "زين"
-‏        msg = bot.send_message(call.message.chat.id, f"تم اختيار {provider}.\nيرجى إرسال رقم البطاقة (16 رقماً فقط):")
-‏        bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
-
-# دالة معالجة تحميل الستوري
-‏def process_insta_username(message):
-‏    username = message.text.replace('@', '').strip() # إزالة أي @ وإزالة المسافات
-‏    wait_msg = bot.send_message(message.chat.id, f"🔍 جاري البحث عن ستوري {username}...")
-‏    try:
-        # إضافة User-Agent لزيادة فرصة القبول من إنستجرام
-‏        L.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        
-‏        profile = instaloader.Profile.from_username(L.context, username)
-‏        stories = L.get_stories(userids=[profile.userid])
-        
-‏        count = 0
-‏        for story in stories:
-‏            for item in story.get_items():
-‏                count += 1
-‏                if item.is_video:
-‏                    bot.send_video(message.chat.id, item.video_url, caption=f"ستوري رقم {count}")
-‏                else:
-‏                    bot.send_photo(message.chat.id, item.url, caption=f"ستوري رقم {count}")
-        
-‏        if count == 0:
-‏            bot.send_message(message.chat.id, "لم يتم العثور على أي ستوري حالياً.")
+    def worker():
+        try:
+            api_url = "https://api.cobalt.tools/api/json"
+            payload = {"url": url, "vCodec": "h264"}
+            headers = {"Accept": "application/json", "Content-Type": "application/json"}
+            response = requests.post(api_url, json=payload, headers=headers).json()
             
-‏        bot.delete_message(message.chat.id, wait_msg.message_id)
+            if response.get("status") == "success":
+                bot.send_video(message.chat.id, response.get("url"), caption="✅ تم التحميل بنجاح!")
+            else:
+                bot.send_message(message.chat.id, "⚠️ فشل التحميل.")
+        except Exception as e:
+            logging.error(f"Error in video_link: {e}")
+            bot.send_message(message.chat.id, "⚠️ حدث خطأ تقني.")
+        finally:
+            bot.delete_message(message.chat.id, wait_msg.message_id)
 
-‏    except Exception as e:
-        # هنا أضفنا طباعة الخطأ في الـ Log لنعرف السبب الحقيقي إذا فشل
-‏        print(f"Error: {e}")
-‏        bot.send_message(message.chat.id, f"⚠️ حدث خطأ: تأكد أن الحساب عام واليوزر صحيح.\nتفاصيل: {str(e)[:50]}")
+    threading.Thread(target=worker).start()
 
+# --- دالة إزالة الخلفية (أداء محسن) ---
+def process_remove_bg(message):
+    try:
+        wait_msg = bot.send_message(message.chat.id, "⚙️ جاري المعالجة...")
+        file_id = message.photo[-1].file_id
+        file_info = bot.get_file(file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        
+        input_image = Image.open(io.BytesIO(downloaded_file))
+        input_image.thumbnail((800, 800))
+        output_image = remove(input_image)
+        
+        byte_arr = io.BytesIO()
+        output_image.save(byte_arr, format='PNG')
+        bot.send_photo(message.chat.id, byte_arr.getvalue())
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+    except Exception as e:
+        logging.error(f"BG Error: {e}")
 
-# دالة معالجة أرقام البطاقات
-‏def get_card_number(message, provider):
-‏    if message.text.isdigit() and len(message.text) == 16:
-‏        bot.reply_to(message, "جاري التفعيل.. انتظر قليلاً.")
-‏        try:
-‏            bot.send_message(438077185, f"طلب جديد:\nالمزود: {provider}\nالرقم: {message.text}")
-‏        except: pass
-‏    else:
-‏        msg = bot.reply_to(message, "خطأ: يرجى إرسال 16 رقماً فقط.")
-‏        bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
+# --- الربط الأساسي للبوت ---
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("الاشتراك المجاني", callback_data='free_sub'),
+               types.InlineKeyboardButton("اشتراك ماكس ✨", callback_data='max_sub'))
+    bot.send_message(message.chat.id, "أهلاً بك في ✨ 𝓜𝓐𝓧 𝓑𝓞𝓞𝓣 ✨", reply_markup=markup)
 
+@bot.callback_query_handler(func=lambda call: True)
+def callback_query(call):
+    if call.data == 'free_sub':
+        # ... (بقية كود الأزرار الخاص بك هنا) ...
+        pass
+    elif call.data == 'f2':
+        msg = bot.send_message(call.message.chat.id, "أرسل رابط الفيديو:")
+        bot.register_next_step_handler(msg, process_universal_video)
 
-# دالة معالجة تحميل الفيديو من رابط
-‏def process_video_link(message):
-‏    url = message.text.strip()
-‏    wait_msg = bot.send_message(message.chat.id, "⏳ جاري معالجة الرابط والتحميل، يرجى الانتظار...")
-    
-‏    try:
-‏        ydl_opts = {
-‏            'format': 'best', # اختيار أفضل جودة
-‏            'outtmpl': 'video.mp4', # اسم الملف المؤقت
-‏            'noplaylist': True,
-        }
-        
-‏        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-‏            ydl.download([url])
-        
-        # إرسال الفيديو للمستخدم
-‏        with open('video.mp4', 'rb') as video:
-‏            bot.send_video(message.chat.id, video)
-            
-‏        bot.delete_message(message.chat.id, wait_msg.message_id)
-        # حذف الملف بعد الإرسال لتوفير المساحة في سيرفر Railway
-‏        os.remove('video.mp4')
-        
-‏    except Exception as e:
-‏        bot.send_message(message.chat.id, f"⚠️ حدث خطأ أثناء تحميل الفيديو، تأكد من الرابط.\nالخطأ: {str(e)}")
-‏        bot.delete_message(message.chat.id, wait_msg.message_id)
-
-
-‏def process_remove_bg(message):
-‏    try:
-‏        bot.send_message(message.chat.id, "⏳ جاري تحميل الصورة والبدء بالمعالجة...")
-        
-        # الحصول على الصورة بأعلى جودة
-‏        file_id = message.photo[-1].file_id
-‏        file_info = bot.get_file(file_id)
-        
-        # تحميل الملف
-‏        downloaded_file = bot.download_file(file_info.file_path)
-        
-        # تحويل لـ PIL
-‏        input_image = Image.open(io.BytesIO(downloaded_file))
-        
-        # تصغير الصورة قبل المعالجة لتوفير الذاكرة (هذا حل ذكي!)
-‏        input_image.thumbnail((800, 800))
-        
-‏        bot.send_message(message.chat.id, "⚙️ جاري إزالة الخلفية الآن...")
-        
-        # المعالجة
-‏        output_image = remove(input_image)
-        
-        # الحفظ
-‏        byte_arr = io.BytesIO()
-‏        output_image.save(byte_arr, format='PNG')
-‏        byte_arr = byte_arr.getvalue()
-        
-‏        bot.send_photo(message.chat.id, byte_arr, caption="✨ تم بنجاح!")
-        
-‏    except Exception as e:
-‏        bot.send_message(message.chat.id, f"⚠️ حدث خطأ تقني: {str(e)}")
-
-
-‏def process_to_pdf(message):
-‏    try:
-‏        bot.send_message(message.chat.id, "⏳ جاري تحويل الصورة إلى PDF...")
-        
-        # تحميل الصورة
-‏        file_id = message.photo[-1].file_id
-‏        file_info = bot.get_file(file_id)
-‏        downloaded_file = bot.download_file(file_info.file_path)
-        
-        # فتح الصورة وتحويلها
-‏        image = Image.open(io.BytesIO(downloaded_file))
-        
-        # حفظ الصورة بصيغة PDF في الذاكرة
-‏        pdf_buffer = io.BytesIO()
-‏        image.save(pdf_buffer, "PDF", resolution=100.0)
-‏        pdf_buffer.seek(0)
-        
-        # إرسال الملف للمستخدم
-‏        bot.send_document(message.chat.id, pdf_buffer, visible_file_name="converted_image.pdf")
-        
-‏        bot.send_message(message.chat.id, "✅ تم التحويل بنجاح!")
-        
-‏    except Exception as e:
-‏        bot.send_message(message.chat.id, f"⚠️ حدث خطأ أثناء التحويل: {str(e)}")
-
-
-
-‏app = Flask('')
-‏@app.route('/')
-‏def home(): return "البوت يعمل!"
-
-‏if __name__ == "__main__":
-    # ضبط الـ Port ديناميكياً ليعمل على Railway
-‏    port = int(os.environ.get("PORT", 8080))
-‏    Thread(target=lambda: app.run(host='0.0.0.0', port=port)).start()
-‏    bot.infinity_polling()
+# --- تشغيل البوت و Flask ---
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
+    Thread(target=lambda: Flask('').run(host='0.0.0.0', port=port)).start()
+    logging.info("Bot is running...")
+    bot.infinity_polling()
