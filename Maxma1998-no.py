@@ -135,35 +135,44 @@ def get_card_number(message, provider):
         bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
 
 def process_video_link(message):
-    if is_spaming(message.from_user.id): return
+    if is_spaming(message.from_user.id): 
+        return
     
     url = message.text.strip()
     
-    # حماية المستوى الثاني: التحقق من الرابط
+    # التحقق من الرابط
     if not is_valid_url(url):
         bot.send_message(message.chat.id, "⚠️ عذراً، هذا الرابط غير مدعوم أو غير آمن.")
         return
         
     wait_msg = bot.send_message(message.chat.id, "⏳ جاري التحميل...")
+    
     try:
-        # كود التحميل
-ydl_opts = {    'format': 'best', 'outtmpl': 'video.mp4','noplaylist': True, 'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36', 'geo_bypass': True,
-    'quiet': True,
-}
+        # إعدادات متطورة لتجاوز الحظر
+        ydl_opts = {
+            'format': 'best', 
+            'outtmpl': 'video.mp4', 
+            'noplaylist': True,
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl: 
+            ydl.download([url])
         
         # إرسال الفيديو للمستخدم
         with open('video.mp4', 'rb') as video: 
             bot.send_video(message.chat.id, video)
             
         bot.delete_message(message.chat.id, wait_msg.message_id)
-        os.remove('video.mp4') # حذف الملف بعد الإرسال
         
+        # حذف الملف بعد الإرسال
+        if os.path.exists('video.mp4'):
+            os.remove('video.mp4')
+            
     except Exception as e:
-        # هذا الجزء هو الذي كان مفقوداً ويسبب الخطأ!
         bot.send_message(message.chat.id, f"⚠️ حدث خطأ أثناء التحميل: {str(e)}")
         if os.path.exists('video.mp4'):
             os.remove('video.mp4')
-
 
 
 def process_to_pdf(message):
