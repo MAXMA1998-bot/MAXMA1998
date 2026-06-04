@@ -67,9 +67,10 @@ def callback_query(call):
         msg = bot.send_message(call.message.chat.id, "أرسل الآن يوزر (معرف) الحساب الذي تريد تحميل الستوري الخاص به:")
         bot.register_next_step_handler(msg, process_insta_username)
         
-    elif call.data == 'f2':
-        msg = bot.send_message(call.message.chat.id, "أرسل لي رابط الفيديو الذي تريد تحميله الآن:")
-        bot.register_next_step_handler(msg, process_video_link)
+        elif call.data == 'f2': 
+        msg = bot.send_message(call.message.chat.id, "أرسل رابط الفيديو (إنستا/فيس/يوتيوب):")
+        bot.register_next_step_handler(msg, process_universal_video)
+
   
     elif call.data == 'f3':
         msg = bot.send_message(call.message.chat.id, "أرسل رابط الفيديو الذي تريد استخراج الصوت منه:")
@@ -153,44 +154,43 @@ def process_to_pdf(message):
     except Exception as e:
         bot.send_message(message.chat.id, f"⚠️ حدث خطأ: {str(e)}")
 
-import requests # تأكد من إضافة import requests في أعلى ملفك
 
-def process_video_link(message):
-    if is_spaming(message.from_user.id): 
-        return
+# دالة التحقق من صحة الرابط (فلترة الروابط الملغمة)
+def is_safe_link(url):
+    # يسمح فقط بروابط إنستجرام وفيسبوك ويوتيوب
+    allowed_domains = ['instagram.com', 'facebook.com', 'fb.watch', 'youtube.com', 'youtu.be']
+    return any(domain in url for domain in allowed_domains)
+
+def process_universal_video(message):
+    if is_spaming(message.from_user.id): return
     
     url = message.text.strip()
-    wait_msg = bot.send_message(message.chat.id, "⏳ جاري التحميل من خوادم سريعة...")
+    
+    # حماية المستوى الثاني: منع الروابط غير المعروفة
+    if not is_safe_link(url):
+        bot.send_message(message.chat.id, "⚠️ الرابط غير مدعوم أو غير آمن. يرجى إرسال رابط إنستجرام أو فيسبوك أو يوتيوب فقط.")
+        return
+        
+    wait_msg = bot.send_message(message.chat.id, "⏳ جاري المعالجة والتحميل...")
     
     try:
-        # رابط خدمة Cobalt لتحميل الفيديوهات
+        # استخدام Cobalt API لأنه يدعم إنستا وفيسبوك ويوتيوب بكفاءة عالية
         api_url = "https://api.cobalt.tools/api/json"
+        payload = {"url": url, "vCodec": "h264"}
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
         
-        # تجهيز البيانات
-        payload = {
-            "url": url,
-            "vCodec": "h264",
-            "vQuality": "720"
-        }
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        }
-        
-        # إرسال الطلب
         response = requests.post(api_url, json=payload, headers=headers).json()
         
-        # التحقق من الرابط المستلم
         if response.get("status") == "success":
             video_url = response.get("url")
-            bot.send_video(message.chat.id, video_url)
+            bot.send_video(message.chat.id, video_url, caption="✅ تم التحميل بنجاح بواسطة ✨ 𝓜𝓐𝓧 𝓑𝓞𝓞𝓣 ✨")
             bot.delete_message(message.chat.id, wait_msg.message_id)
         else:
-            bot.send_message(message.chat.id, "⚠️ فشل التحميل، تأكد من صحة الرابط.")
+            bot.send_message(message.chat.id, "⚠️ فشل التحميل: تأكد أن الحساب عام (Public) والرابط صحيح.")
             bot.delete_message(message.chat.id, wait_msg.message_id)
             
     except Exception as e:
-        bot.send_message(message.chat.id, f"⚠️ حدث خطأ تقني: {str(e)}")
+        bot.send_message(message.chat.id, f"⚠️ خطأ تقني: {str(e)}")
         bot.delete_message(message.chat.id, wait_msg.message_id)
 
 
