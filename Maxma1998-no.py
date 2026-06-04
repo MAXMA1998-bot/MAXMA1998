@@ -1,14 +1,14 @@
-‏import os
-‏import telebot
-‏from telebot import types
-‏from flask import Flask
-‏from threading import Thread
-‏import re
-‏import instaloader
-‏import yt_dlp
-‏import io
-‏from PIL import Image
-‏from rembg import remove
+import os
+import telebot
+from telebot import types‏
+from flask import Flask‏
+from threading import Thread
+import re
+import instaloader
+import yt_dlp
+import io
+from PIL import Image
+from rembg import remove
 
 # إعداد الـ Token من متغيرات البيئة في Railway
 ‏TOKEN = os.environ.get('TOKEN')
@@ -25,6 +25,7 @@
 ‏    bot.send_message(message.chat.id, "أهلاً بك في ✨ 𝓜𝓐𝓧 𝓑𝓞𝓞𝓣 ✨", reply_markup=markup)
 
 ‏@bot.callback_query_handler(func=lambda call: True)
+
 ‏def callback_query(call):
     # قسم الاشتراكات المجانية
 ‏    if call.data == 'free_sub':
