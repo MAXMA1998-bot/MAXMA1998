@@ -154,7 +154,7 @@ def process_video_link(message):
             'outtmpl': 'video.mp4', 
             'noplaylist': True,
             'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-'referer': 'https://www.youtube.com/',
+'referer': 'https://www.youtube.com/', }
 
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl: 
