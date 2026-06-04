@@ -6,6 +6,7 @@ from threading import Thread
 import re
 import instaloader
 import yt_dlp
+import io
 from PIL import Image
 from rembg import remove
 
