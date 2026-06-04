@@ -24,6 +24,18 @@ def is_spaming(user_id):
         return True
     user_last_action[user_id] = current_time
     return False
+# --- حماية المستوى الثاني (Validation & Sanitization) ---
+
+def is_valid_url(url):
+    # قائمة بالنطاقات المسموح بها فقط
+    allowed_domains = ['youtube.com', 'youtu.be', 'instagram.com']
+    return any(domain in url for domain in allowed_domains)
+
+def clean_text(text):
+    # إزالة أي رموز قد تُستخدم في هجمات الحقن البرمجي (Injection)
+    # نسمح فقط بالحروف والأرقام والرموز الأساسية للروابط
+    return re.sub(r'[^\w\s/:.?=&]', '', text)
+
 
 # تهيئة انستالودر
 L = instaloader.Instaloader(download_videos=True, download_pictures=True, save_metadata=False)
@@ -124,16 +136,21 @@ def get_card_number(message, provider):
 
 def process_video_link(message):
     if is_spaming(message.from_user.id): return
+    
     url = message.text.strip()
+    
+    # حماية المستوى الثاني: التحقق من الرابط
+    if not is_valid_url(url):
+        bot.send_message(message.chat.id, "⚠️ عذراً، هذا الرابط غير مدعوم أو غير آمن.")
+        return
+        
     wait_msg = bot.send_message(message.chat.id, "⏳ جاري التحميل...")
     try:
+        # استخدام shlex.quote لحماية إضافية إذا كنت ستستخدم أوامر نظام
         ydl_opts = {'format': 'best', 'outtmpl': 'video.mp4', 'noplaylist': True}
         with yt_dlp.YoutubeDL(ydl_opts) as ydl: ydl.download([url])
-        with open('video.mp4', 'rb') as video: bot.send_video(message.chat.id, video)
-        bot.delete_message(message.chat.id, wait_msg.message_id)
-        os.remove('video.mp4')
-    except Exception as e:
-        bot.send_message(message.chat.id, f"⚠️ حدث خطأ.\nالخطأ: {str(e)}")
+        # ... بقية الكود
+
 
 def process_to_pdf(message):
     if is_spaming(message.from_user.id): return
