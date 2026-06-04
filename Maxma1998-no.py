@@ -180,31 +180,39 @@ def process_audio_conversion(message):
         bot.send_message(message.chat.id, f"⚠️ حدث خطأ أثناء التحويل. تأكد من الرابط.\nالخطأ: {str(e)}")
         bot.delete_message(message.chat.id, wait_msg.message_id)
 
-# دالة إزالة الخلفية
+
 def process_remove_bg(message):
     try:
-        if not message.photo:
-            bot.send_message(message.chat.id, "❌ لم تقم بإرسال صورة! يرجى إرسال صورة.")
-            return
-            
-        wait_msg = bot.send_message(message.chat.id, "⏳ جاري معالجة الصورة وإزالة الخلفية...")
+        bot.send_message(message.chat.id, "⏳ جاري تحميل الصورة والبدء بالمعالجة...")
         
+        # الحصول على الصورة بأعلى جودة
         file_id = message.photo[-1].file_id
         file_info = bot.get_file(file_id)
+        
+        # تحميل الملف
         downloaded_file = bot.download_file(file_info.file_path)
         
+        # تحويل لـ PIL
         input_image = Image.open(io.BytesIO(downloaded_file))
+        
+        # تصغير الصورة قبل المعالجة لتوفير الذاكرة (هذا حل ذكي!)
+        input_image.thumbnail((800, 800))
+        
+        bot.send_message(message.chat.id, "⚙️ جاري إزالة الخلفية الآن...")
+        
+        # المعالجة
         output_image = remove(input_image)
         
+        # الحفظ
         byte_arr = io.BytesIO()
         output_image.save(byte_arr, format='PNG')
         byte_arr = byte_arr.getvalue()
         
-        bot.send_photo(message.chat.id, byte_arr, caption="✨ تم إزالة الخلفية بنجاح!")
-        bot.delete_message(message.chat.id, wait_msg.message_id)
+        bot.send_photo(message.chat.id, byte_arr, caption="✨ تم بنجاح!")
         
     except Exception as e:
-        bot.send_message(message.chat.id, f"⚠️ حدث خطأ: {str(e)}")
+        bot.send_message(message.chat.id, f"⚠️ حدث خطأ تقني: {str(e)}")
+
 
 
 app = Flask('')
