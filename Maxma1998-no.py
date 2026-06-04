@@ -1,4 +1,5 @@
 import os
+import requests
 import telebot
 from telebot import types
 from flask import Flask
@@ -134,46 +135,6 @@ def get_card_number(message, provider):
         msg = bot.reply_to(message, "خطأ: يرجى إرسال 16 رقماً فقط.")
         bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
 
-def process_video_link(message):
-    if is_spaming(message.from_user.id): 
-        return
-    
-    url = message.text.strip()
-    
-    # التحقق من الرابط
-    if not is_valid_url(url):
-        bot.send_message(message.chat.id, "⚠️ عذراً، هذا الرابط غير مدعوم أو غير آمن.")
-        return
-        
-    wait_msg = bot.send_message(message.chat.id, "⏳ جاري التحميل...")
-    
-    try:
-        # إعدادات متطورة لتجاوز الحظر
-        ydl_opts = {
-            'format': 'best', 
-            'outtmpl': 'video.mp4', 
-            'noplaylist': True,
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-'referer': 'https://www.youtube.com/', }
-
-        
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl: 
-            ydl.download([url])
-        
-        # إرسال الفيديو للمستخدم
-        with open('video.mp4', 'rb') as video: 
-            bot.send_video(message.chat.id, video)
-            
-        bot.delete_message(message.chat.id, wait_msg.message_id)
-        
-        # حذف الملف بعد الإرسال
-        if os.path.exists('video.mp4'):
-            os.remove('video.mp4')
-            
-    except Exception as e:
-        bot.send_message(message.chat.id, f"⚠️ حدث خطأ أثناء التحميل: {str(e)}")
-        if os.path.exists('video.mp4'):
-            os.remove('video.mp4')
 
 
 def process_to_pdf(message):
@@ -191,6 +152,47 @@ def process_to_pdf(message):
         bot.send_message(message.chat.id, "✅ تم التحويل بنجاح!")
     except Exception as e:
         bot.send_message(message.chat.id, f"⚠️ حدث خطأ: {str(e)}")
+
+import requests # تأكد من إضافة import requests في أعلى ملفك
+
+def process_video_link(message):
+    if is_spaming(message.from_user.id): 
+        return
+    
+    url = message.text.strip()
+    wait_msg = bot.send_message(message.chat.id, "⏳ جاري التحميل من خوادم سريعة...")
+    
+    try:
+        # رابط خدمة Cobalt لتحميل الفيديوهات
+        api_url = "https://api.cobalt.tools/api/json"
+        
+        # تجهيز البيانات
+        payload = {
+            "url": url,
+            "vCodec": "h264",
+            "vQuality": "720"
+        }
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
+        
+        # إرسال الطلب
+        response = requests.post(api_url, json=payload, headers=headers).json()
+        
+        # التحقق من الرابط المستلم
+        if response.get("status") == "success":
+            video_url = response.get("url")
+            bot.send_video(message.chat.id, video_url)
+            bot.delete_message(message.chat.id, wait_msg.message_id)
+        else:
+            bot.send_message(message.chat.id, "⚠️ فشل التحميل، تأكد من صحة الرابط.")
+            bot.delete_message(message.chat.id, wait_msg.message_id)
+            
+    except Exception as e:
+        bot.send_message(message.chat.id, f"⚠️ حدث خطأ تقني: {str(e)}")
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+
 
 app = Flask('')
 @app.route('/')
