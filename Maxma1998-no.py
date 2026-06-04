@@ -28,7 +28,7 @@ def send_welcome(message):
 def callback_query(call):
     # قسم الاشتراكات المجانية
     if call.data == 'free_sub':
-        my_free_names = [" 🌄تحميل ستوري ", "تحميل أي فيديو🎥", "تحويل الفيديو الى صوت🔊 ", "اازالة خلفية الصورة"]
+        my_free_names = [" pdfتحميل ستوري ", "تحميل أي فيديو🎥", "تحويل الفيديو الى صوت🔊 ", "تحويل صورة الى "]
         markup = types.InlineKeyboardMarkup(row_width=2)
         buttons = [types.InlineKeyboardButton(my_free_names[i], callback_data=f'f{i+1}') for i in range(4)]
         markup.add(*buttons)
@@ -48,8 +48,9 @@ def callback_query(call):
         bot.register_next_step_handler(msg, process_audio_conversion)
 
     elif call.data == 'f4': # الزر الرابع
-        msg = bot.send_message(call.message.chat.id, "📸 أرسل لي الصورة التي تريد إزالة خلفيتها الآن:")
-        bot.register_next_step_handler(msg, process_remove_bg)
+        msg = bot.send_message(call.message.chat.id, "📄 أرسل الصورة التي تريد تحويلها إلى PDF:")
+        bot.register_next_step_handler(msg, process_to_pdf)
+
 
     
     # قسم اشتراك ماكس
@@ -149,37 +150,6 @@ def process_video_link(message):
         bot.send_message(message.chat.id, f"⚠️ حدث خطأ أثناء تحميل الفيديو، تأكد من الرابط.\nالخطأ: {str(e)}")
         bot.delete_message(message.chat.id, wait_msg.message_id)
 
-def process_audio_conversion(message):
-    url = message.text.strip()
-    wait_msg = bot.send_message(message.chat.id, "⏳ جاري استخراج الصوت، يرجى الانتظار...")
-    
-    try:
-        # إعدادات yt-dlp لاستخراج الصوت فقط
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
-            'outtmpl': 'audio.mp3',
-        }
-        
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-        
-        # إرسال الملف الصوتي للمستخدم
-        with open('audio.mp3', 'rb') as audio:
-            bot.send_audio(message.chat.id, audio, caption="تم التحويل بنجاح! 🎵")
-            
-        bot.delete_message(message.chat.id, wait_msg.message_id)
-        # حذف الملف بعد الإرسال
-        os.remove('audio.mp3')
-        
-    except Exception as e:
-        bot.send_message(message.chat.id, f"⚠️ حدث خطأ أثناء التحويل. تأكد من الرابط.\nالخطأ: {str(e)}")
-        bot.delete_message(message.chat.id, wait_msg.message_id)
-
 
 def process_remove_bg(message):
     try:
@@ -212,6 +182,32 @@ def process_remove_bg(message):
         
     except Exception as e:
         bot.send_message(message.chat.id, f"⚠️ حدث خطأ تقني: {str(e)}")
+
+
+def process_to_pdf(message):
+    try:
+        bot.send_message(message.chat.id, "⏳ جاري تحويل الصورة إلى PDF...")
+        
+        # تحميل الصورة
+        file_id = message.photo[-1].file_id
+        file_info = bot.get_file(file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        
+        # فتح الصورة وتحويلها
+        image = Image.open(io.BytesIO(downloaded_file))
+        
+        # حفظ الصورة بصيغة PDF في الذاكرة
+        pdf_buffer = io.BytesIO()
+        image.save(pdf_buffer, "PDF", resolution=100.0)
+        pdf_buffer.seek(0)
+        
+        # إرسال الملف للمستخدم
+        bot.send_document(message.chat.id, pdf_buffer, visible_file_name="converted_image.pdf")
+        
+        bot.send_message(message.chat.id, "✅ تم التحويل بنجاح!")
+        
+    except Exception as e:
+        bot.send_message(message.chat.id, f"⚠️ حدث خطأ أثناء التحويل: {str(e)}")
 
 
 
