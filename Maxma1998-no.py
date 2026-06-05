@@ -15,6 +15,25 @@ OWNER_ID = int(os.getenv('OWNER_ID', 0))
 TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 
+@bot.message_handler(func=lambda message: message.text.startswith('/'))
+def restrict_commands(message):
+    # 1. استثناء المالك (يسمح لك باستخدام أي أمر)
+    if message.from_user.id == OWNER_ID:
+        return 
+
+    # 2. السماح للمستخدمين باستخدام /start فقط
+    if message.text == '/start':
+        return 
+
+    # 3. في حالة حاول المستخدم كتابة أي أمر آخر، أرسل له رسالة التحذير
+    bot.reply_to(message, "⚠️ نعتذر، أنت تستخدم نصوص غير مصرح بها لك. سوف يتم فرض حظر على حسابك إذا حاولت مجدداً.")
+    
+    # 4. اختيارياً: يمكنك تسجيل محاولة التخريب في الـ Logs
+    print(f"⚠️ محاولة غير مصرح بها من المستخدم: {message.from_user.first_name} ({message.from_user.id})")
+    
+    # لا تقم بـ return هنا، بل دعه ينتهي ولن ينفذ أي شيء آخر
+
+
 @bot.message_handler(commands=['storage'])
 def check_storage(message):
     # شرط التحقق: إذا لم يكن الآيدي هو آيدي المالك، يتجاهل البوت الأمر تماماً
