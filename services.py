@@ -1,4 +1,4 @@
-
+import os
 # قائمة المشتركين (يمكن لاحقاً ربطها بقاعدة بيانات)
 AUTHORIZED_USERS = [int(os.environ.get('ADMIN_ID', 438077185))] 
 
