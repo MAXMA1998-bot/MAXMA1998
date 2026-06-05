@@ -3,9 +3,26 @@ import yt_dlp
 import img2pdf
 import pytesseract
 from deep_translator import GoogleTranslator
-from PIL import Image
 import os
 import shutil
+import pytesseract
+import os
+import shutil
+from PIL import Image  # هذه ضرورية جداً
+
+# إعداد مسار tesseract
+tesseract_path = shutil.which("tesseract") or '/usr/bin/tesseract'
+pytesseract.pytesseract.tesseract_cmd = tesseract_path
+
+def extract_text_from_image(image_path):
+    try:
+        # تأكد من أن ملف الصورة يفتح بشكل صحيح
+        img = Image.open(image_path)
+        text = pytesseract.image_to_string(img, lang='ara+eng')
+        return text
+    except Exception as e:
+        return f"خطأ في استخراج النص: {str(e)}"
+
 
 # تهيئة انستالودر
 L = instaloader.Instaloader(download_videos=True, download_pictures=True, save_metadata=False)
@@ -41,19 +58,20 @@ def convert_to_pdf(image_path, pdf_path):
         f.write(img2pdf.convert(image_path))
 
 
+
+# إعداد مسار tesseract
+tesseract_path = shutil.which("tesseract") or '/usr/bin/tesseract'
+pytesseract.pytesseract.tesseract_cmd = tesseract_path
+
 def extract_text_from_image(image_path):
-    # محاولة إيجاد مسار tesseract تلقائياً إذا لم يكن في الـ PATH
-    tesseract_path = shutil.which("tesseract")
-    if tesseract_path:
-        pytesseract.pytesseract.tesseract_cmd = tesseract_path
-    else:
-        # إذا فشل البحث، نستخدم المسار الافتراضي في Linux
-        pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'ستخراج النص
     try:
-        text = pytesseract.image_to_string(Image.open(image_path), lang='ara+eng')
+        # تأكد من أن ملف الصورة يفتح بشكل صحيح
+        img = Image.open(image_path)
+        text = pytesseract.image_to_string(img, lang='ara+eng')
         return text
     except Exception as e:
-        return f"خطأ في معالجة الصورة: {str(e)}"
+        return f"خطأ في استخراج النص: {str(e)}"
+
 
 
 def translate_text(text, dest_lang='ar'):
