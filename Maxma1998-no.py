@@ -113,6 +113,14 @@ app = Flask('')
 def home(): return "البوت يعمل!"
 
 if __name__ == "__main__":
+    # تشغيل Flask في الخلفية
     port = int(os.environ.get("PORT", 8080))
     Thread(target=lambda: app.run(host='0.0.0.0', port=port)).start()
-    bot.infinity_polling()
+
+    # محاولة تشغيل البوت مع معالجة الأخطاء
+    try:
+        print("جاري تنظيف الروابط القديمة والبدء...")
+        bot.remove_webhook()
+        bot.infinity_polling(timeout=60, long_polling_timeout=60, skip_pending=True)
+    except Exception as e:
+        print(f"حدث خطأ أثناء التشغيل: {e}")
