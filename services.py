@@ -14,10 +14,18 @@ def get_insta_media(username):
         'no_warnings': True,
         'format': 'best',
         'outtmpl': 'story_%(id)s.mp4',
+        # إضافة هذه السطور لتقليل احتمالية طلب تسجيل الدخول
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        return info.get('requested_downloads', [])
+        try:
+            info = ydl.extract_info(url, download=True)
+            return info.get('requested_downloads', [])
+        except Exception as e:
+            # إذا فشل التحميل، هذا يعني أن الحساب برايفت أو يتطلب تسجيل دخول إجباري
+            print(f"فشل التحميل: {e}")
+            return []
+
 
 def download_video_service(url):
     ydl_opts = {'format': 'best', 'outtmpl': 'video.mp4', 'noplaylist': True}
