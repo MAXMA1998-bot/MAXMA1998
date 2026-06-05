@@ -85,12 +85,12 @@ def process_insta_username(message):
 def process_video_link(message):
     url = message.text.strip()
     chat_id = message.chat.id
-    # نستخدم اسم ملف فريد لكل مستخدم باستخدام chat_id
-    file_name = f"video_{chat_id}.mp4" 
+    file_name = f"video_{chat_id}.mp4" # هذا هو الاسم الموحد
+    
     wait_msg = bot.send_message(chat_id, "⏳ جاري التحميل...")
     
     try:
-        # تأكد أن دالة التحميل تقبل اسم الملف وتستخدمه بدلاً من الاسم الثابت
+        # الآن نمرر الاسم (file_name) للسيرفس
         services.download_video_service(url, file_name) 
         
         with open(file_name, 'rb') as video:
@@ -100,15 +100,10 @@ def process_video_link(message):
         bot.send_message(chat_id, f"⚠️ حدث خطأ: {str(e)}")
         
     finally:
-        # هذا الجزء يعمل دائماً سواء نجح التحميل أو فشل
+        # الآن الـ finally سيبحث عن نفس الاسم الذي أنشأه السيرفس
         if os.path.exists(file_name):
             os.remove(file_name)
-        
-        # حذف رسالة الانتظار
-        try:
-            bot.delete_message(chat_id, wait_msg.message_id)
-        except:
-            pass # لتجنب أي خطأ إذا كانت الرسالة قد حُذفت بالفعل
+
 
  
 def process_ocr(message):
