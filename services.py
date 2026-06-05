@@ -2,8 +2,8 @@ import instaloader
 import yt_dlp
 import img2pdf
 import pytesseract
+from deep_translator import GoogleTranlator
 from PIL import Image
-from googletrans import Tranlator
 import os
 
 # تهيئة انستالودر
@@ -39,12 +39,14 @@ def convert_to_pdf(image_path, pdf_path):
     with open(pdf_path, "wb") as f:
         f.write(img2pdf.convert(image_path))
 
- 
+
 def extract_text_from_image(image_path):
+    # تأكد أنك قمت بتثبيت tesseract-ocr على النظام
     text = pytesseract.image_to_string(Image.open(image_path), lang='ara+eng')
     return text
 
-
 def translate_text(text, dest_lang='ar'):
-    translator = Translator()
-    return translator.translate(text, dest=dest_lang).text
+    # استخدام deep-translator بدلاً من googletrans
+    translator = GoogleTranslator(source='auto', target=dest_lang)
+    return translator.translate(text)
+
