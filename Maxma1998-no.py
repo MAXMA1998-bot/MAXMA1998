@@ -153,6 +153,30 @@ def get_card_number(message, provider):
         msg = bot.reply_to(message, "خطأ: يرجى إرسال 16 رقماً فقط.")
         bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
 
+@bot.message_handler(commands=['storage'])
+def check_storage(message):
+    # شرط التحقق: إذا لم يكن الآيدي هو آيدي المالك، يتجاهل البوت الأمر تماماً
+    if message.from_user.id != OWNER_ID:
+        return
+
+    # الحصول على إحصائيات التخزين للجذر (/) حيث يعمل البوت
+    total, used, free = shutil.disk_usage("/")
+    
+    # التحويل من بايت إلى ميجابايت (MB)
+    total_mb = total // (1024 * 1024)
+    used_mb = used // (1024 * 1024)
+    free_mb = free // (1024 * 1024)
+    
+    response = (
+        f"📊 **حالة ذاكرة تخزين السيرفر:**\n\n"
+        f"💾 الإجمالي: {total_mb} MB\n"
+        f"📉 المستهلك حالياً: {used_mb} MB\n"
+        f"✅ المتبقي: {free_mb} MB"
+    )
+    
+    bot.reply_to(message, response)
+
+
 app = Flask('')
 @app.route('/')
 def home(): return "البوت يعمل!"
