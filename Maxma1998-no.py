@@ -31,7 +31,10 @@ def callback_query(call):
         bot.register_next_step_handler(msg, process_insta_username)
     elif call.data == 'f2':
         msg = bot.send_message(call.message.chat.id, "أرسل لي رابط الفيديو:")
-        bot.register_next_step_handler(msg, process_video_link)
+        bot.register_next_step_handler(msg, 
+    elif call.data == 'f3':
+    msg = bot.send_message(call.message.chat.id, "أرسل الصورة التي تريد استخراج النص منها:")
+    bot.register_next_step_handler(msg, process_ocr)
     elif call.data == 'f4':
         msg = bot.send_message(call.message.chat.id, "أرسل لي الصورة الآن:")
         bot.register_next_step_handler(msg, process_image_to_pdf)
@@ -91,6 +94,23 @@ def process_video_link(message):
     except Exception as e:
         bot.send_message(message.chat.id, f"⚠️ حدث خطأ: {str(e)}")
         bot.delete_message(message.chat.id, wait_msg.message_id)
+
+ 
+ 
+def process_ocr(message):
+    if message.content_type == 'photo':
+        file_info = bot.get_file(message.photo[-1].file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        with open("img.jpg", 'wb') as f: f.write(downloaded_file)
+        
+        text = services.extract_text_from_image("img.jpg")
+        translated = services.translate_text(text)
+        
+        bot.send_message(message.chat.id, f"📜 النص المستخرج:\n{text}\n\n🌍 الترجمة:\n{translated}")
+        os.remove("img.jpg")
+    else:
+        bot.reply_to(message, "يرجى إرسال صورة واضحة.")
+
 
 def process_image_to_pdf(message):
     if message.content_type == 'photo':
