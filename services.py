@@ -1,6 +1,9 @@
 import instaloader
 import yt_dlp
 import img2pdf
+import pytesseract
+from PIL import Image
+from googletrans import Tranlator
 import os
 
 # تهيئة انستالودر
@@ -35,3 +38,13 @@ def download_video_service(url):
 def convert_to_pdf(image_path, pdf_path):
     with open(pdf_path, "wb") as f:
         f.write(img2pdf.convert(image_path))
+
+ 
+def extract_text_from_image(image_path):
+    text = pytesseract.image_to_string(Image.open(image_path), lang='ara+eng')
+    return text
+
+
+def translate_text(text, dest_lang='ar'):
+    translator = Translator()
+    return translator.translate(text, dest=dest_lang).text
