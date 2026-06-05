@@ -20,7 +20,7 @@ def send_welcome(message):
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     if call.data == 'free_sub':
-        my_free_names = ["تحميل ستوري", "تحميل أي فيديو ", "الخدمة الثالثة", "تحويل صورة لـ PDF"]
+        my_free_names = ["تحميل ستوري", "تحميل أي فيديو ", "ترجمة صورة الى نص", "تحويل صورة لـ PDF"]
         markup = types.InlineKeyboardMarkup(row_width=2)
         buttons = [types.InlineKeyboardButton(my_free_names[i], callback_data=f'f{i+1}') for i in range(4)]
         markup.add(*buttons)
