@@ -2,7 +2,7 @@ import instaloader
 import yt_dlp
 import img2pdf
 import pytesseract
-from deep_translator import GoogleTranlator
+from deep_translator import GoogleTranslator
 from PIL import Image
 import os
 
