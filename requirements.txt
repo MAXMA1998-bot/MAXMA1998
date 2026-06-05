@@ -9,4 +9,4 @@ onnxruntime
 pytesseract
 deep-translator
 img2pdf
-
+apscheduler
