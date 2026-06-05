@@ -7,7 +7,6 @@ import os
 import shutil
 import pytesseract
 import os
-import shutil
 from PIL import Image  # هذه ضرورية جداً
 
 # إعداد مسار tesseract
@@ -58,10 +57,6 @@ def convert_to_pdf(image_path, pdf_path):
         f.write(img2pdf.convert(image_path))
 
 
-
-# إعداد مسار tesseract
-tesseract_path = shutil.which("tesseract") or '/usr/bin/tesseract'
-pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
 def extract_text_from_image(image_path):
     try:
