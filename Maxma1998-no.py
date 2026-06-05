@@ -99,11 +99,15 @@ def process_video_link(message):
     except Exception as e:
         bot.send_message(chat_id, f"⚠️ حدث خطأ: {str(e)}")
         
-    finally:
-        # الآن الـ finally سيبحث عن نفس الاسم الذي أنشأه السيرفس
+        finally:
         if os.path.exists(file_name):
             os.remove(file_name)
-
+            print(f"✅ تم حذف الملف {file_name} بنجاح وتحرير الذاكرة.") # هذا سيظهر في الـ Logs
+        
+        try:
+            bot.delete_message(chat_id, wait_msg.message_id)
+        except:
+            pass
 
  
 def process_ocr(message):
