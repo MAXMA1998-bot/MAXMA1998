@@ -31,10 +31,10 @@ def callback_query(call):
         bot.register_next_step_handler(msg, process_insta_username)
     elif call.data == 'f2':
         msg = bot.send_message(call.message.chat.id, "أرسل لي رابط الفيديو:")
-        bot.register_next_step_handler(msg, 
+        bot.register_next_step_handler(msg, process_video_link)
     elif call.data == 'f3':
-    msg = bot.send_message(call.message.chat.id, "أرسل الصورة التي تريد استخراج النص منها:")
-    bot.register_next_step_handler(msg, process_ocr)
+        msg = bot.send_message(call.message.chat.id, "أرسل الصورة التي تريد استخراج النص منها:")
+        bot.register_next_step_handler(msg, process_ocr)
     elif call.data == 'f4':
         msg = bot.send_message(call.message.chat.id, "أرسل لي الصورة الآن:")
         bot.register_next_step_handler(msg, process_image_to_pdf)
