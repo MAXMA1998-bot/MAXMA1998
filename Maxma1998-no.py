@@ -59,21 +59,25 @@ def callback_query(call):
         msg = bot.send_message(call.message.chat.id, f"تم اختيار {provider}.\nيرجى إرسال رقم البطاقة (16 رقماً):")
         bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
 
+# ... (داخل دالة process_insta_username)
 def process_insta_username(message):
     username = message.text.replace('@', '').strip()
-    wait_msg = bot.send_message(message.chat.id, f"🔍 جاري البحث عن ستوري {username}...")
+    wait_msg = bot.send_message(message.chat.id, "🔍 جاري البحث...")
     try:
-        stories = services.get_insta_data(username)
-        count = 0
-        for story in stories:
-            for item in story.get_items():
-                count += 1
-                if item.is_video: bot.send_video(message.chat.id, item.video_url, caption=f"ستوري {count}")
-                else: bot.send_photo(message.chat.id, item.url, caption=f"ستوري {count}")
-        if count == 0: bot.send_message(message.chat.id, "لم يتم العثور على ستوري.")
+        # هنا التعديل: استدعاء الاسم الجديد الصحيح
+        items = services.get_insta_media(username)
+        
+        if not items:
+            bot.send_message(message.chat.id, "لم يتم العثور على ستوري.")
+        else:
+            for item in items:
+                with open(item['filepath'], 'rb') as video:
+                    bot.send_video(message.chat.id, video)
+                os.remove(item['filepath'])
         bot.delete_message(message.chat.id, wait_msg.message_id)
     except Exception as e:
-        bot.send_message(message.chat.id, f"⚠️ حدث خطأ: {str(e)[:50]}")
+        bot.send_message(message.chat.id, f"⚠️ خطأ: {str(e)[:50]}")
+# ... (باقي الكود كما هو)
 
 def process_video_link(message):
     url = message.text.strip()
