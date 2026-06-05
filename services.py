@@ -5,6 +5,7 @@ import pytesseract
 from deep_translator import GoogleTranslator
 from PIL import Image
 import os
+import shutil
 
 # تهيئة انستالودر
 L = instaloader.Instaloader(download_videos=True, download_pictures=True, save_metadata=False)
@@ -41,9 +42,19 @@ def convert_to_pdf(image_path, pdf_path):
 
 
 def extract_text_from_image(image_path):
-    # تأكد أنك قمت بتثبيت tesseract-ocr على النظام
-    text = pytesseract.image_to_string(Image.open(image_path), lang='ara+eng')
-    return text
+    # محاولة إيجاد مسار tesseract تلقائياً إذا لم يكن في الـ PATH
+    tesseract_path = shutil.which("tesseract")
+    if tesseract_path:
+        pytesseract.pytesseract.tesseract_cmd = tesseract_path
+    else:
+        # إذا فشل البحث، نستخدم المسار الافتراضي في Linux
+        pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'ستخراج النص
+    try:
+        text = pytesseract.image_to_string(Image.open(image_path), lang='ara+eng')
+        return text
+    except Exception as e:
+        return f"خطأ في معالجة الصورة: {str(e)}"
+
 
 def translate_text(text, dest_lang='ar'):
     # استخدام deep-translator بدلاً من googletrans
