@@ -84,18 +84,32 @@ def process_insta_username(message):
 
 def process_video_link(message):
     url = message.text.strip()
-    wait_msg = bot.send_message(message.chat.id, "⏳ جاري التحميل...")
+    chat_id = message.chat.id
+    # نستخدم اسم ملف فريد لكل مستخدم باستخدام chat_id
+    file_name = f"video_{chat_id}.mp4" 
+    wait_msg = bot.send_message(chat_id, "⏳ جاري التحميل...")
+    
     try:
-        services.download_video_service(url)
-        with open('video.mp4', 'rb') as video:
-            bot.send_video(message.chat.id, video)
-        bot.delete_message(message.chat.id, wait_msg.message_id)
-        os.remove('video.mp4')
+        # تأكد أن دالة التحميل تقبل اسم الملف وتستخدمه بدلاً من الاسم الثابت
+        services.download_video_service(url, file_name) 
+        
+        with open(file_name, 'rb') as video:
+            bot.send_video(chat_id, video)
+            
     except Exception as e:
-        bot.send_message(message.chat.id, f"⚠️ حدث خطأ: {str(e)}")
-        bot.delete_message(message.chat.id, wait_msg.message_id)
+        bot.send_message(chat_id, f"⚠️ حدث خطأ: {str(e)}")
+        
+    finally:
+        # هذا الجزء يعمل دائماً سواء نجح التحميل أو فشل
+        if os.path.exists(file_name):
+            os.remove(file_name)
+        
+        # حذف رسالة الانتظار
+        try:
+            bot.delete_message(chat_id, wait_msg.message_id)
+        except:
+            pass # لتجنب أي خطأ إذا كانت الرسالة قد حُذفت بالفعل
 
- 
  
 def process_ocr(message):
     if message.content_type == 'photo':
