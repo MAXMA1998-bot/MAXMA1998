@@ -1,4 +1,6 @@
 import os
+import signal
+import sys
 import telebot
 from telebot import types
 from flask import Flask
@@ -112,15 +114,22 @@ app = Flask('')
 @app.route('/')
 def home(): return "البوت يعمل!"
 
-if __name__ == "__main__":
-    # تشغيل Flask في الخلفية
-    port = int(os.environ.get("PORT", 8080))
-    Thread(target=lambda: app.run(host='0.0.0.0', port=port)).start()
+# ... (باقي الكود الخاص بك)
 
-    # محاولة تشغيل البوت مع معالجة الأخطاء
-    try:
-        print("جاري تنظيف الروابط القديمة والبدء...")
-        bot.remove_webhook()
-        bot.infinity_polling(timeout=60, long_polling_timeout=60, skip_pending=True)
-    except Exception as e:
-        print(f"حدث خطأ أثناء التشغيل: {e}")
+def shutdown(signum, frame):
+    print("إيقاف البوت...")
+    bot.stop_polling()
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, shutdown)
+signal.signal(signal.SIGTERM, shutdown)
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
+    # تشغيل Flask
+    Thread(target=lambda: app.run(host='0.0.0.0', port=port), daemon=True).start()
+
+    # تشغيل البوت
+    print("جاري تشغيل البوت...")
+    bot.remove_webhook()
+    bot.infinity_polling(timeout=60, long_polling_timeout=60, skip_pending=True)
