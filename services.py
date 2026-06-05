@@ -48,12 +48,20 @@ def get_insta_media(username):
 
 
 def download_video_service(url, chat_id):
-    file_path=f"video_{chat_id}.mp4"
+    # اجعل الاسم بسيطاً جداً
+    file_path = f"{chat_id}.mp4" 
     
-    ydl_opts = {'format': 'best', 'outtmpl':file_path, 'noplaylist': True}
+    ydl_opts = {
+        'format': 'best', 
+        'outtmpl': file_path, 
+        'noplaylist': True
+    }
+    
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
-        return file_path
+    
+    return file_path
+
 
 def convert_to_pdf(image_path, pdf_path):
     with open(pdf_path, "wb") as f:
