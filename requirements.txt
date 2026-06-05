@@ -7,4 +7,5 @@ rembg
 Pillow
 onnxruntime
 pytesseract
+googletrans==4.0.0-rc1
 img2pdf
