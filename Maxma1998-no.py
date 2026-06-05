@@ -1,4 +1,6 @@
+import glob
 import os
+from apscheduler.schedulers.background import BackgroundScheduler
 import signal
 import sys
 import telebot
@@ -35,6 +37,35 @@ def check_storage(message):
     )
     
     bot.reply_to(message, response)
+
+
+# دالة التنظيف التلقائي
+def auto_cleanup_job():
+    # ابحث عن جميع أنواع الملفات المؤقتة التي قد تكون عالقة
+    # يمكنك إضافة امتدادات أخرى مثل *.jpg أو *.txt إذا كنت تستخدمها
+    patterns = ["video_*.mp4", "photo_*.jpg", "*.tmp"]
+    
+    count = 0
+    for pattern in patterns:
+        files = glob.glob(pattern)
+        for f in files:
+            try:
+                # تأكد أن الملف ليس "قيد الاستخدام" حالياً (اختياري ولكن أفضل)
+                os.remove(f)
+                count += 1
+            except Exception as e:
+                # إذا كان الملف قيد التحميل حالياً، سيفشل الحذف وهذا طبيعي
+                pass
+                
+    if count > 0:
+        print(f"🧹 [تنظيف تلقائي]: تم حذف {count} ملف عالق من السيرفر.")
+
+# إعداد المجدول ليعمل كل دقيقة
+scheduler = BackgroundScheduler()
+scheduler.add_job(auto_cleanup_job, 'interval', minutes=1)
+scheduler.start()
+
+print("🚀 نظام التنظيف التلقائي مفعل (كل دقيقة).")
 
 
 @bot.message_handler(commands=['start'])
