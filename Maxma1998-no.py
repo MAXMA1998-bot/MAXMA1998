@@ -99,15 +99,21 @@ def process_video_link(message):
     except Exception as e:
         bot.send_message(chat_id, f"⚠️ حدث خطأ: {str(e)}")
         
-        finally:
-        if os.path.exists(file_name):
-            os.remove(file_name)
-            print(f"✅ تم حذف الملف {file_name} بنجاح وتحرير الذاكرة.") # هذا سيظهر في الـ Logs
-        
+    finally:
+        # 1. أولاً: احذف رسالة الانتظار (لتريح المستخدم فوراً)
         try:
             bot.delete_message(chat_id, wait_msg.message_id)
         except:
             pass
+
+        # 2. ثانياً: قم بعمليات التنظيف (حذف ملف الفيديو)
+        if os.path.exists(file_name):
+            try:
+                os.remove(file_name)
+                print(f"✅ تم حذف الملف {file_name} بنجاح.")
+            except Exception as e:
+                print(f"خطأ أثناء حذف الملف: {e}")
+
 
  
 def process_ocr(message):
