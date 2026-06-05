@@ -47,13 +47,10 @@ def get_insta_media(username):
             return []
 
 
-def download_video_service(url, chat_id):
-    # اجعل الاسم بسيطاً جداً
-    file_path = f"{chat_id}.mp4" 
-    
+def download_video_service(url, file_path): # لاحظ أننا نمرر الاسم المطلوب هنا
     ydl_opts = {
         'format': 'best', 
-        'outtmpl': file_path, 
+        'outtmpl': file_path, # سيتم حفظ الملف بالاسم الذي أرسله البوت
         'noplaylist': True
     }
     
