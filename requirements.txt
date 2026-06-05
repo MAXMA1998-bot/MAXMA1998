@@ -7,3 +7,4 @@ rembg
 Pillow
 onnxruntime
 pytesseract
+img2pdf
