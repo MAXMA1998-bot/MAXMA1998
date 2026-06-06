@@ -7,7 +7,7 @@ import services
 from apscheduler.schedulers.background import BackgroundScheduler
 
 # --- 1. الإعدادات الأساسية ---
-TOKEN = os.getenv('BOT_TOKEN')
+TOKEN = os.getenv('TOKEN')
 OWNER_ID = int(os.getenv('OWNER_ID', 0))
 bot = telebot.TeleBot(TOKEN)
 user_last_message_time = {}
