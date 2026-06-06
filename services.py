@@ -1,94 +1,86 @@
-import instaloader
+import os
+import re
+import shutil
 import yt_dlp
 import img2pdf
 import pytesseract
-from deep_translator import GoogleTranslator
-import os
-import shutil
-import pytesseract
-import urllib.parse
+import instaloader
+from PIL import Image
 from urllib.parse import urlparse
-from PIL import Image  # هذه ضرورية جداً
+from deep_translator import GoogleTranslator
 
-# إعداد مسار tesseract
+# --- الإعدادات ---
 tesseract_path = shutil.which("tesseract") or '/usr/bin/tesseract'
 pytesseract.pytesseract.tesseract_cmd = tesseract_path
-
-def extract_text_from_image(image_path):
-    try:
-        # تأكد من أن ملف الصورة يفتح بشكل صحيح
-        img = Image.open(image_path)
-        text = pytesseract.image_to_string(img, lang='ara+eng')
-        return text
-    except Exception as e:
-        return f"خطأ في استخراج النص: {str(e)}"
-
-
-# تهيئة انستالودر
 L = instaloader.Instaloader(download_videos=True, download_pictures=True, save_metadata=False)
 
+# --- وظائف الأمان ---
+def get_safe_filename(name):
+    """تأمين اسم الملف ومنع التنقل بين المجلدات"""
+    return re.sub(r'[^a-zA-Z0-9_\.]', '', str(name))
+
+def is_safe_url(url):
+    """التحقق من صحة الرابط"""
+    parsed = urlparse(url)
+    return parsed.scheme in ('http', 'https')
+
+# --- الخدمات ---
+
+def download_video_service(url, file_path):
+    if not is_safe_url(url):
+        raise ValueError("رابط غير آمن!")
+    
+    # تأمين المسار: التأكد أن الملف يُحفظ في المجلد الحالي فقط
+    safe_name = get_safe_filename(os.path.basename(file_path))
+    final_path = os.path.join(os.getcwd(), safe_name)
+    
+    ydl_opts = {
+        'format': 'best',
+        'outtmpl': final_path,
+        'noplaylist': True,
+        'max_filesize': 50 * 1024 * 1024, # حماية الذاكرة
+        'quiet': True
+    }
+    
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        ydl.download([url])
+    return final_path
 
 def get_insta_media(username):
-    url = f"https://www.instagram.com/stories/{username}/"
+    # تنظيف اليوزر لمنع أي تلاعب
+    safe_user = get_safe_filename(username)
+    url = f"https://www.instagram.com/stories/{safe_user}/"
+    
     ydl_opts = {
         'quiet': True,
-        'no_warnings': True,
         'format': 'best',
         'outtmpl': 'story_%(id)s.mp4',
-        # إضافة هذه السطور لتقليل احتمالية طلب تسجيل الدخول
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+        'user_agent': 'Mozilla/5.0'
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         try:
             info = ydl.extract_info(url, download=True)
             return info.get('requested_downloads', [])
-        except Exception as e:
-            # إذا فشل التحميل، هذا يعني أن الحساب برايفت أو يتطلب تسجيل دخول إجباري
-            print(f"فشل التحميل: {e}")
+        except:
             return []
 
-
-def download_video_service(url, file_path):
-    # 1. حماية المدخلات: التأكد أن الرابط يبدأ بـ http/https
-    parsed_url = urlparse(url)
-    if parsed_url.scheme not in ('http', 'https'):
-        raise ValueError("رابط غير صالح! يرجى إرسال رابط يبدأ بـ http أو https.")
-
-    # 2. إعدادات التحميل الآمنة
-    ydl_opts = {
-        'format': 'best', 
-        'outtmpl': file_path, 
-        'noplaylist': True,
-        'max_filesize': 50 * 1024 * 1024, # إضافي: حد أقصى للحجم (50 ميجابايت) لحماية السيرفر
-        'quiet': True # إضافي: لجعل التحميل صامتاً في السجلات
-    }
-    
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
-    
-    return file_path
-
-
-
-def convert_to_pdf(image_path, pdf_path):
-    with open(pdf_path, "wb") as f:
-        f.write(img2pdf.convert(image_path))
-
-
-
 def extract_text_from_image(image_path):
+    # حماية: التأكد من وجود الملف قبل المعالجة
+    if not os.path.exists(image_path): return "الملف غير موجود."
     try:
-        # تأكد من أن ملف الصورة يفتح بشكل صحيح
-        img = Image.open(image_path)
-        text = pytesseract.image_to_string(img, lang='ara+eng')
-        return text
+        with Image.open(image_path) as img:
+            return pytesseract.image_to_string(img, lang='ara+eng').strip()
     except Exception as e:
-        return f"خطأ في استخراج النص: {str(e)}"
-
-
+        return f"خطأ: {str(e)}"
 
 def translate_text(text, dest_lang='ar'):
-    # استخدام deep-translator بدلاً من googletrans
-    translator = GoogleTranslator(source='auto', target=dest_lang)
-    return translator.translate(text)
+    try:
+        return GoogleTranslator(source='auto', target=dest_lang).translate(text[:2000]) # تحديد الطول للحماية
+    except Exception as e:
+        return "خطأ في الترجمة."
 
+def convert_to_pdf(image_path, pdf_path):
+    if not os.path.exists(image_path): return
+    safe_pdf = get_safe_filename(pdf_path)
+    with open(safe_pdf, "wb") as f:
+        f.write(img2pdf.convert(image_path))
