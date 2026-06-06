@@ -44,8 +44,7 @@ scheduler.start()
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     if not is_allowed(message): return
-    bot.reply_to(message, "مرحباً بك في✨ 𝓜𝓐𝓧 𝓑𝓞𝓞𝓣 ✨
- ")
+    bot.reply_to(message, "مرحباً بك في✨ 𝓜𝓐𝓧 𝓑𝓞𝓞𝓣 ✨")
 
 @bot.message_handler(commands=['clean'])
 def clean_server(message):
