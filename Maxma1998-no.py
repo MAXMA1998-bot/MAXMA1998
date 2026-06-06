@@ -6,12 +6,14 @@ import sys
 import telebot
 import shutil
 import services
+from telebot import apihelper
 from telebot import types
 from flask import Flask
 from threading import Thread
 from apscheduler.schedulers.background import BackgroundScheduler
 
 # --- 1. الإعدادات ---
+apihelper.ENABLE_MIDDLEWARE = True
 OWNER_ID = int(os.getenv('OWNER_ID', 0)) 
 TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
