@@ -15,6 +15,12 @@ OWNER_ID = int(os.getenv('OWNER_ID', 0))
 TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("الاشتراك المجاني", callback_data='free_sub'),
+               types.InlineKeyboardButton("اشتراك ماكس ✨", callback_data='max_sub'))
+    bot.send_message(message.chat.id, "أهلاً بك في ✨ 𝓜𝓐𝓧 𝓑𝓞𝓞𝓣 ✨", reply_markup=markup)
 
 @bot.message_handler(commands=['storage'])
 def check_storage(message):
@@ -86,12 +92,6 @@ scheduler.start()
 print("🚀 نظام التنظيف التلقائي مفعل (كل دقيقة).")
 
 
-@bot.message_handler(commands=['start'])
-def send_welcome(message):
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("الاشتراك المجاني", callback_data='free_sub'),
-               types.InlineKeyboardButton("اشتراك ماكس ✨", callback_data='max_sub'))
-    bot.send_message(message.chat.id, "أهلاً بك في ✨ 𝓜𝓐𝓧 𝓑𝓞𝓞𝓣 ✨", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
