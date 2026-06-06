@@ -6,7 +6,8 @@ from deep_translator import GoogleTranslator
 import os
 import shutil
 import pytesseract
-import os
+import urllib.parse
+from urllib.parse import urllibparse
 from PIL import Image  # هذه ضرورية جداً
 
 # إعداد مسار tesseract
@@ -47,11 +48,19 @@ def get_insta_media(username):
             return []
 
 
-def download_video_service(url, file_path): # لاحظ أننا نمرر الاسم المطلوب هنا
+def download_video_service(url, file_path):
+    # 1. حماية المدخلات: التأكد أن الرابط يبدأ بـ http/https
+    parsed_url = urlparse(url)
+    if parsed_url.scheme not in ('http', 'https'):
+        raise ValueError("رابط غير صالح! يرجى إرسال رابط يبدأ بـ http أو https.")
+
+    # 2. إعدادات التحميل الآمنة
     ydl_opts = {
         'format': 'best', 
-        'outtmpl': file_path, # سيتم حفظ الملف بالاسم الذي أرسله البوت
-        'noplaylist': True
+        'outtmpl': file_path, 
+        'noplaylist': True,
+        'max_filesize': 50 * 1024 * 1024, # إضافي: حد أقصى للحجم (50 ميجابايت) لحماية السيرفر
+        'quiet': True # إضافي: لجعل التحميل صامتاً في السجلات
     }
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
