@@ -7,7 +7,7 @@ import os
 import shutil
 import pytesseract
 import urllib.parse
-from urllib.parse import urllibparse
+from urllib.parse import urlparse
 from PIL import Image  # هذه ضرورية جداً
 
 # إعداد مسار tesseract
