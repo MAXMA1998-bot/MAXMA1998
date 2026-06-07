@@ -112,7 +112,7 @@ def callback_query(call):
         bot.edit_message_text("اختر مزود الخدمة:", call.message.chat.id, call.message.message_id, reply_markup=markup)
     elif call.data.startswith('provider_'):
         provider = "آسياسيل" if call.data == 'provider_asia' else "زين"
-        msg = bot.send_message(call.message.chat.id, f"تم اختيار {provider}.\nيرجى إرسال رقم البطاقة (16 رقماً):")
+        msg = bot.send_message(call.message.chat.id, f"تم اختيار {provider}.\nملاحظة؛رصيد الاشتراك الشهري بطاقة من فئة 5$ .يرجى إرسال رقم البطاقة (16 رقماً):")
         bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
 
     #الدوال 
