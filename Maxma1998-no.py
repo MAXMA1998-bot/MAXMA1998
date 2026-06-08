@@ -138,6 +138,7 @@ def show_results(message):
 # التعامل مع اختيار فيلم معين لعرض تفاصيله
 @bot.callback_query_handler(func=lambda call: call.data.startswith("view_"))
 def show_details(call):
+    print(f"DEBUG: Received callback with data: {call.data}")
     movie_id = call.data.split("_")[1]
     movie = movie_service.get_movie_full_details(movie_id)
     
