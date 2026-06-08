@@ -219,8 +219,36 @@ def shutdown(signum, frame):
 signal.signal(signal.SIGINT, shutdown)
 signal.signal(signal.SIGTERM, shutdown)
 
+from flask import Flask, request
+import os
+
+# تأكد أن app معرفة لديك في بداية الملف
+# app = Flask(__name__)
+
 if __name__ == "__main__":
-    Thread(target=lambda: app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080))), daemon=True).start()
-    print("🚀 البوت يعمل الآن بكفاءة.")
-    bot.remove_webhook()
-    bot.infinity_polling(timeout=60, long_polling_timeout=60, skip_pending=True)
+    # إعدادات الـ Webhook
+    # تأكد من إضافة رابط مشروعك على Railway في المتغيرات باسم WEBHOOK_URL
+    # مثال: https://your-app-name.up.railway.app
+    WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
+    PORT = int(os.environ.get("PORT", 8080))
+
+    if WEBHOOK_URL:
+        # إعداد الـ Webhook
+        bot.remove_webhook()
+        bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
+        
+        # إضافة مسار الـ Webhook ليستقبل التحديثات من تيليجرام
+        @app.route('/webhook', methods=['POST'])
+        def webhook():
+            if request.headers.get('content-type') == 'application/json':
+                json_string = request.get_data().decode('utf-8')
+                update = telebot.types.Update.de_json(json_string)
+                bot.process_new_updates([update])
+                return '!', 200
+            else:
+                return 'Forbidden', 403
+
+        print(f"🚀 البوت يعمل الآن عبر Webhook على المنفذ {PORT}")
+        app.run(host='0.0.0.0', port=PORT)
+    else:
+        print("⚠️ خطأ: لم يتم العثور على WEBHOOK_URL في المتغيرات.")
