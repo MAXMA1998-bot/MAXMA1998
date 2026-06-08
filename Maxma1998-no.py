@@ -208,27 +208,25 @@ def get_card_number(message, provider):
   
  
 # --- 6. التشغيل ---
-app = Flask('')
+
+app = Flask(__name__)
 @app.route('/')
-def home(): return "البوت يعمل!"
+def home():
+    return "البوت يعمل بنظام Webhook!"
+@app.route('/ping')
+def ping():
+    return "I am alive!", 200
 
-def shutdown(signum, frame):
-    bot.stop_polling()
-    sys.exit(0)
-
-signal.signal(signal.SIGINT, shutdown)
-signal.signal(signal.SIGTERM, shutdown)
-
-from flask import Flask, request
-import os
-
-# تأكد أن app معرفة لديك في بداية الملف
-# app = Flask(__name__)
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return '!', 200
+    return 'Forbidden', 403
 
 if __name__ == "__main__":
-    # إعدادات الـ Webhook
-    # تأكد من إضافة رابط مشروعك على Railway في المتغيرات باسم WEBHOOK_URL
-    # مثال: https://your-app-name.up.railway.app
     WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
     PORT = int(os.environ.get("PORT", 8080))
 
