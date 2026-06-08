@@ -46,24 +46,6 @@ def download_video_service(url, file_path):
         ydl.download([url])
     return final_path
 
-def get_insta_media(username):
-    # تنظيف اليوزر لمنع أي تلاعب
-    safe_user = get_safe_filename(username)
-    url = f"https://www.instagram.com/stories/{safe_user}/"
-    
-    ydl_opts = {
-        'quiet': True,
-        'format': 'best',
-        'outtmpl': 'story_%(id)s.mp4',
-        'user_agent': 'Mozilla/5.0'
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        try:
-            info = ydl.extract_info(url, download=True)
-            return info.get('requested_downloads', [])
-        except:
-            return []
-
 def extract_text_from_image(image_path):
     # حماية: التأكد من وجود الملف قبل المعالجة
     if not os.path.exists(image_path): return "الملف غير موجود."
