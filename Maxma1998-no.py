@@ -11,6 +11,7 @@ from telebot import types
 from flask import Flask
 from threading import Thread
 from apscheduler.schedulers.background import BackgroundScheduler
+import movie_services
 
 # --- 1. الإعدادات ---
 apihelper.ENABLE_MIDDLEWARE = True
@@ -83,8 +84,8 @@ def callback_query(call):
         bot.edit_message_text("اختر الخدمة المجانية:", call.message.chat.id, call.message.message_id, reply_markup=markup)
     # ... (باقي أزرارك هنا) ...
     elif call.data == 'f1':
-        msg = bot.send_message(call.message.chat.id, "أرسل الآن يوزر (معرف) الحساب:")
-        bot.register_next_step_handler(msg, process_insta_username)
+        msg = bot.send_message(call.message.chat.id, "🎬 **أهلاً بك في سينما البوت!**\n\nأرسل لي الآن اسم الفيلم الذي تود مشاهدته:")
+        bot.register_next_step_handler(msg, show_results)
     elif call.data == 'f2':
         msg = bot.send_message(call.message.chat.id, "أرسل لي رابط الفيديو:")
         bot.register_next_step_handler(msg, process_video_link)
@@ -115,25 +116,42 @@ def callback_query(call):
         msg = bot.send_message(call.message.chat.id, f"تم اختيار {provider}.\nملاحظة؛رصيد الاشتراك الشهري بطاقة من فئة 5$ .يرجى إرسال رقم البطاقة (16 رقماً):")
         bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
 
+
+@bot.callback_query_handler(func=lambda call: call.data == "search_movie")
+def ask_for_movie(call):
+    msg = bot.send_message(call.message.chat.id, "🎬 أرسل لي اسم الفيلم الذي تود مشاهدته:")
+    bot.register_next_step_handler(msg, show_results)
+
+def show_results(message):
+    results = movie_service.get_movie_results(message.text)
+    if not results:
+        bot.send_message(message.chat.id, "❌ لم يتم العثور على نتائج.")
+        return
+    
+    markup = types.InlineKeyboardMarkup()
+    for movie in results:
+        btn_text = f"{movie['title']} ({movie.get('release_date', 'N/A')[:4]})"
+        markup.add(types.InlineKeyboardButton(btn_text, callback_data=f"view_{movie['id']}"))
+    
+    bot.send_message(message.chat.id, "✅ اختر فيلماً من القائمة:", reply_markup=markup)
+
+# التعامل مع اختيار فيلم معين لعرض تفاصيله
+@bot.callback_query_handler(func=lambda call: call.data.startswith("view_"))
+def show_details(call):
+    movie_id = call.data.split("_")[1]
+    movie = movie_service.get_movie_full_details(movie_id)
+    
+    if movie:
+        poster = f"https://image.tmdb.org/t/p/w500{movie.get('poster_path', '')}"
+        text = f"🎞 **{movie['title']}**\n\n📝 **القصة:** {movie.get('overview', 'لا توجد قصة')}\n⭐ **التقييم:** {movie.get('vote_average')}/10"
+        
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("📺 مشاهدة الفيلم", url=f"https://www.google.com/search?q=watch+{movie['title']}"))
+        
+        bot.send_photo(call.message.chat.id, poster, caption=text, reply_markup=markup)
+
     #الدوال 
 
-def process_insta_username(message):
-    username = message.text.replace('@', '').strip()
-    wait_msg = bot.send_message(message.chat.id, "🔍 جاري البحث...")
-    try:
-        # هنا التعديل: استدعاء الاسم الجديد الصحيح
-        items = services.get_insta_media(username)
-        
-        if not items:
-            bot.send_message(message.chat.id, "لم يتم العثور على ستوري.")
-        else:
-            for item in items:
-                with open(item['filepath'], 'rb') as video:
-                    bot.send_video(message.chat.id, video)
-                os.remove(item['filepath'])
-        bot.delete_message(message.chat.id, wait_msg.message_id)
-    except Exception as e:
-        bot.send_message(message.chat.id, f"⚠️ خطأ: {str(e)[:50]}")
 
 def process_video_link(message):
     url, chat_id = message.text.strip(), message.chat.id
