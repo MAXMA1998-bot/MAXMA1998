@@ -123,7 +123,7 @@ def ask_for_movie(call):
     bot.register_next_step_handler(msg, show_results)
 
 def show_results(message):
-    results = movie_service.get_movie_results(message.text)
+    results = movie_services.get_movie_results(message.text)
     if not results:
         bot.send_message(message.chat.id, "❌ لم يتم العثور على نتائج.")
         return
