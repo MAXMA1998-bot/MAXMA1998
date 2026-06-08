@@ -209,11 +209,18 @@ def get_card_number(message, provider):
  
 # --- 6. التشغيل ---
 
+# 1. التعريفات الأساسية (خارج if __name__)
 app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "البوت يعمل بنظام Webhook!"
+
 @app.route('/ping')
 def ping():
     return "I am alive!", 200
 
+# دالة الويب هوك الواحدة والوحيدة
 @app.route('/webhook', methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':
@@ -223,26 +230,16 @@ def webhook():
         return '!', 200
     return 'Forbidden', 403
 
+# 2. الجزء التشغيلي
 if __name__ == "__main__":
     WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
     PORT = int(os.environ.get("PORT", 8080))
 
     if WEBHOOK_URL:
-        # إعداد الـ Webhook
+        # إعداد الـ Webhook لتيليجرام
         bot.remove_webhook()
         bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
         
-        # إضافة مسار الـ Webhook ليستقبل التحديثات من تيليجرام
-        @app.route('/webhook', methods=['POST'])
-        def webhook():
-            if request.headers.get('content-type') == 'application/json':
-                json_string = request.get_data().decode('utf-8')
-                update = telebot.types.Update.de_json(json_string)
-                bot.process_new_updates([update])
-                return '!', 200
-            else:
-                return 'Forbidden', 403
-
         print(f"🚀 البوت يعمل الآن عبر Webhook على المنفذ {PORT}")
         app.run(host='0.0.0.0', port=PORT)
     else:
