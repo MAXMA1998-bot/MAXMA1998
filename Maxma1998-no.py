@@ -140,7 +140,7 @@ def show_results(message):
 def show_details(call):
     print(f"DEBUG: Received callback with data: {call.data}")
     movie_id = call.data.split("_")[1]
-    movie = movie_service.get_movie_full_details(movie_id)
+    movie = movie_services.get_movie_full_details(movie_id)
     
     if movie:
         poster = f"https://image.tmdb.org/t/p/w500{movie.get('poster_path', '')}"
