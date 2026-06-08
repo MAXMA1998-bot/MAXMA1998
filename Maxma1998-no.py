@@ -210,9 +210,6 @@ def get_card_number(message, provider):
 # --- 6. التشغيل ---
 
 app = Flask(__name__)
-@app.route('/')
-def home():
-    return "البوت يعمل بنظام Webhook!"
 @app.route('/ping')
 def ping():
     return "I am alive!", 200
