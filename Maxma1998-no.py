@@ -101,9 +101,6 @@ def callback_query(call):
         bot.register_next_step_handler(msg, process_image_to_pdf)
 
     elif call.data.startswith("view_"):
-        # عدل هذا السطر في دالة callback_query
-        PLAYER_DIRECT_URL = "https://vidsrc.pro/embed/movie/{imdb_id}" 
-
         movie_id = call.data.split("_")[1]
         movie = movie_services.get_movie_full_details(movie_id)
         
@@ -116,15 +113,15 @@ def callback_query(call):
             
             markup = types.InlineKeyboardMarkup()
             
-            # 2. بناء الرابط والزر هنا
             if imdb_id:
-                # دمج الرابط الخاص بك مع الـ ID
-                watch_url = f"{PLAYER_DIRECT_URL}{imdb_id}?sub=ar"
+                watch_url = f"https://vidsrc.pro/embed/movie/{imdb_id}"
                 markup.add(types.InlineKeyboardButton("📺 مشاهدة الفيلم (مباشر)", url=watch_url))
+                
+                cinemana_url = f"https://cinemana.shabakaty.com/search?q={movie.get('title', '').replace(' ', '+')}"
+                markup.add(types.InlineKeyboardButton("📺 شاهد عبر سينمانا (بحث)", url=cinemana_url))
             else:
                 markup.add(types.InlineKeyboardButton("📺 مشاهدة (بحث)", url=f"https://www.google.com/search?q=watch+{movie.get('title')}"))
             
-            # إضافة زر النصيحة
             markup.add(types.InlineKeyboardButton("💡 نصيحة للمشاهدة", callback_data="help_watch"))
             
             try:
@@ -133,7 +130,6 @@ def callback_query(call):
                 bot.send_message(call.message.chat.id, text, reply_markup=markup)
         else:
             bot.answer_callback_query(call.id, "❌ فشل في جلب تفاصيل الفيلم.")
-
 
 
     elif call.data == 'max_sub':
