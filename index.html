@@ -2,55 +2,32 @@
 <html lang="ar">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>✨ 𝓜𝓐𝓧 𝓑𝓞𝓞𝓣 ✨</title>
     <style>
-        /* إعدادات الخلفية والشكل العام */
-        body { margin: 0; padding: 0; background-color: #050505; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        
-        /* شريط العنوان العلوي */
-        .header { height: 50px; display: flex; align-items: center; justify-content: center; background: #000; border-bottom: 2px solid #ffcc00; box-shadow: 0 2px 10px rgba(255, 204, 0, 0.2); }
-        .brand { font-size: 18px; font-weight: bold; color: #ffcc00; letter-spacing: 1px; }
-
-        /* منطقة المشغل */
-        #player-wrapper { flex-grow: 1; position: relative; width: 100%; height: 100%; }
-        
-        /* إخفاء الحواف وتحسين المشغل */
-        iframe { 
-            width: 100%; 
-            height: 100%; 
-            border: none; 
-            border-radius: 0;
-            /* خاصية إضافية لمحاولة إخفاء بعض عناصر الإعلانات في المتصفحات */
-            filter: contrast(1.05) saturate(1.1); 
-        }
-
-        /* رسالة توجيهية للمستخدم */
-        .footer-note { padding: 10px; font-size: 12px; text-align: center; color: #666; background: #000; }
+        body { background: #050505; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; }
+        .box { text-align: center; padding: 30px; border: 1px solid #333; border-radius: 15px; background: #111; }
+        .btn { display: inline-block; background: #ffcc00; color: #000; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 20px; }
     </style>
 </head>
 <body>
-
-    <div class="header">
-        <div class="brand">✨ 𝓜𝓐𝓧 𝓑𝓞𝓞𝓣 ✨</div>
-    </div>
-
-    <div id="player-wrapper">
-        <iframe id="videoPlayer" src="" allowfullscreen="true" scrolling="no" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
-    </div>
-
-    <div class="footer-note">
-        جاري تشغيل الفيلم عبر سيرفرات ماكس.. إذا واجهت مشكلة، استخدم أزرار المشغل بالأسفل.
+    <div class="box">
+        <h1>✨ 𝓜𝓐𝓧 𝓑𝓞𝓞𝓣 ✨</h1>
+        <p>جاري تحويلك للمشغل المباشر..</p>
+        <p style="font-size: 12px; color: #888;">سيتم فتح المشغل المترجم تلقائياً</p>
+        <a id="watchBtn" class="btn" href="#">مشاهدة الفيلم الآن</a>
     </div>
 
     <script>
         const params = new URLSearchParams(window.location.search);
         const imdb_id = params.get('id');
         
-        // الرابط المصدر مع تفعيل الترجمة التلقائية
-        const playerUrl = `https://embed.su/embed/movie/${imdb_id}?sub=ar`;
+        // الرابط هنا يتضمن ?sub=ar لضمان الترجمة العربية
+        const finalUrl = `https://embed.su/embed/movie/${imdb_id}?sub=ar`;
         
-        document.getElementById('videoPlayer').src = playerUrl;
+        document.getElementById('watchBtn').href = finalUrl;
+        
+        // تحويل تلقائي بعد 1.5 ثانية
+        setTimeout(() => { window.location.href = finalUrl; }, 1500);
     </script>
 </body>
 </html>
