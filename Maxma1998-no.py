@@ -19,7 +19,6 @@ OWNER_ID = int(os.getenv('OWNER_ID', 0))
 TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 user_last_message_time = {}
-PLAYER_URL = "https://# أضف اسم الملف في نهاية الرابط
 PLAYER_URL = "https://maxma1998-bot.github.io/player.html"
 
 # --- 2. نظام التريث التلقائي (Middleware) ---
