@@ -19,7 +19,6 @@ OWNER_ID = int(os.getenv('OWNER_ID', 0))
 TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 user_last_message_time = {}
-PLAYER_URL = "https://maxma1998-bot.github.io/player.html"
 
 # --- 2. نظام التريث التلقائي (Middleware) ---
 @bot.middleware_handler(update_types=['message', 'callback_query'])
@@ -102,6 +101,7 @@ def callback_query(call):
         bot.register_next_step_handler(msg, process_image_to_pdf)
 
     elif call.data.startswith("view_"):
+        PLAYER_URL = "https://maxma1998-bot.github.io/player.html"
         movie_id = call.data.split("_")[1]
         movie = movie_services.get_movie_full_details(movie_id)
         
