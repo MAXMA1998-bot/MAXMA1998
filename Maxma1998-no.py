@@ -102,7 +102,7 @@ def callback_query(call):
 
     elif call.data.startswith("view_"):
         # عدل هذا السطر في دالة callback_query
-        PLAYER_DIRECT_URL = "https://embed.su/embed/movie/" 
+        PLAYER_DIRECT_URL = "https://vidsrc.pro/embed/movie/{imdb_id}" 
 
         movie_id = call.data.split("_")[1]
         movie = movie_services.get_movie_full_details(movie_id)
