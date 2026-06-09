@@ -112,7 +112,7 @@ def callback_query(call):
             
             # هنا التعديل: إذا توفر الـ imdb_id نضع رابط المشاهدة المباشر
             if imdb_id:
-                watch_url = f"https://vidsrc.to/embed/movie/{imdb_id}"
+                watch_url = f"intent://vidsrc.to/embed/movie/{imdb_id}#Intent;scheme=https;end"
                 markup.add(types.InlineKeyboardButton("📺 مشاهدة الفيلم (مباشر)", url=watch_url))
             else:
                 # إذا لم يتوفر (حالة نادرة)، نترك البحث في جوجل كخيار بديل
