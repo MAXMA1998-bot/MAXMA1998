@@ -21,13 +21,16 @@
         const params = new URLSearchParams(window.location.search);
         const imdb_id = params.get('id');
         
-        // الرابط هنا يتضمن ?sub=ar لضمان الترجمة العربية
+        // الرابط المترجم
         const finalUrl = `https://embed.su/embed/movie/${imdb_id}?sub=ar`;
         
-        document.getElementById('watchBtn').href = finalUrl;
+        // ربط الزر للفتح في نافذة جديدة
+        const btn = document.getElementById('watchBtn');
+        btn.href = finalUrl;
+        btn.target = "_blank"; // هذا هو السر: يفتح في نافذة جديدة
         
-        // تحويل تلقائي بعد 1.5 ثانية
-        setTimeout(() => { window.location.href = finalUrl; }, 1500);
+        // تحويل تلقائي للفتح في نافذة جديدة
+        setTimeout(() => { 
+            window.open(finalUrl, '_blank'); 
+        }, 1500);
     </script>
-</body>
-</html>
