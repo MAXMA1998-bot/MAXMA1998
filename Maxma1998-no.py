@@ -102,7 +102,7 @@ def callback_query(call):
 
     elif call.data.startswith("view_"):
         # عدل هذا السطر في دالة callback_query
-        PLAYER_URL = "https://maxma1998-bot.github.io/MAXMA1998/index.html"
+        PLAYER_DIRECT_URL = "https://embed.su/embed/movie/" 
 
         movie_id = call.data.split("_")[1]
         movie = movie_services.get_movie_full_details(movie_id)
@@ -119,8 +119,8 @@ def callback_query(call):
             # 2. بناء الرابط والزر هنا
             if imdb_id:
                 # دمج الرابط الخاص بك مع الـ ID
-                watch_url = f"{PLAYER_URL}?id={imdb_id}"
-                markup.add(types.InlineKeyboardButton("📺 مشاهدة الفيلم (حصري)", url=watch_url))
+                watch_url = f"{PLAYER_DIRECT_URL}{imdb_id}?sub=ar"
+                markup.add(types.InlineKeyboardButton("📺 مشاهدة الفيلم (مباشر)", url=watch_url))
             else:
                 markup.add(types.InlineKeyboardButton("📺 مشاهدة (بحث)", url=f"https://www.google.com/search?q=watch+{movie.get('title')}"))
             
