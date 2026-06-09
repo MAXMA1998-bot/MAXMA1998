@@ -116,7 +116,7 @@ def callback_query(call):
             
             # الرابط المباشر
             if imdb_id:
-                watch_url = f"https://vidsrc.pro/embed/movie/{imdb_id}?sub=ar⁠"
+                watch_url = f"https://username.github.io/your-repo/player.html?id={imdb_id}⁠"
                 markup.add(types.InlineKeyboardButton("📺 مشاهدة الفيلم (مباشر)", url=watch_url))
             else:
                 markup.add(types.InlineKeyboardButton("📺 مشاهدة (بحث)", url=f"https://www.google.com/search?q=watch+{movie.get('title')}"))
