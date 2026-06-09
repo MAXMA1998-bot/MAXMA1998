@@ -102,7 +102,7 @@ def callback_query(call):
 
     elif call.data.startswith("view_"):
         # عدل هذا السطر في دالة callback_query
-PLAYER_URL = "https://maxma1998-bot.github.io/MAXMA1998/index.html"
+        PLAYER_URL = "https://maxma1998-bot.github.io/MAXMA1998/index.html"
 
         movie_id = call.data.split("_")[1]
         movie = movie_services.get_movie_full_details(movie_id)
