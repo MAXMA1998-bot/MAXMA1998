@@ -19,6 +19,7 @@ OWNER_ID = int(os.getenv('OWNER_ID', 0))
 TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 user_last_message_time = {}
+PLAYER_URL = "https://maxma1998-bot.github.io/player.html"
 
 # --- 2. نظام التريث التلقائي (Middleware) ---
 @bot.middleware_handler(update_types=['message', 'callback_query'])
@@ -107,27 +108,26 @@ def callback_query(call):
         if movie:
             imdb_id = movie.get('imdb_id')
             poster_path = movie.get('poster_path')
-            # استخدام صورة افتراضية إذا لم تتوفر صورة للفيلم لتجنب الخطأ
             poster = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://via.placeholder.com/500x750?text=No+Image"
             
             text = f"🎞 **{movie.get('title', 'غير معروف')}**\n\n📝 **القصة:** {movie.get('overview', 'لا توجد قصة')}\n⭐ **التقييم:** {movie.get('vote_average')}/10"
             
             markup = types.InlineKeyboardMarkup()
             
-            # الرابط المباشر
+            # 2. بناء الرابط والزر هنا
             if imdb_id:
-                watch_url = f"https://username.github.io/your-repo/player.html?id={imdb_id}⁠"
-                markup.add(types.InlineKeyboardButton("📺 مشاهدة الفيلم (مباشر)", url=watch_url))
+                # دمج الرابط الخاص بك مع الـ ID
+                watch_url = f"{PLAYER_URL}?id={imdb_id}"
+                markup.add(types.InlineKeyboardButton("📺 مشاهدة الفيلم (حصري)", url=watch_url))
             else:
                 markup.add(types.InlineKeyboardButton("📺 مشاهدة (بحث)", url=f"https://www.google.com/search?q=watch+{movie.get('title')}"))
             
-            # إضافة زر إضافي لمساعدة المستخدم
+            # إضافة زر النصيحة
             markup.add(types.InlineKeyboardButton("💡 نصيحة للمشاهدة", callback_data="help_watch"))
             
             try:
                 bot.send_photo(call.message.chat.id, poster, caption=text, reply_markup=markup)
             except Exception as e:
-                # إذا حدث خطأ في إرسال الصورة، نرسل النص فقط
                 bot.send_message(call.message.chat.id, text, reply_markup=markup)
         else:
             bot.answer_callback_query(call.id, "❌ فشل في جلب تفاصيل الفيلم.")
