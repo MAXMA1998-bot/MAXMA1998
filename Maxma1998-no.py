@@ -100,7 +100,7 @@ def callback_query(call):
         msg = bot.send_message(call.message.chat.id, "أرسل لي الصورة الآن:")
         bot.register_next_step_handler(msg, process_image_to_pdf)
 
-        elif call.data.startswith("view_"):
+    elif call.data.startswith("view_"):
         movie_id = call.data.split("_")[1]
         movie = movie_services.get_movie_full_details(movie_id)
         
