@@ -7,7 +7,7 @@ import pytesseract
 from PIL import Image
 from urllib.parse import urlparse
 from deep_translator import GoogleTranslator
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageEnhance, ImageFilter, ExifTags
 
 # --- الإعدادات والمصادر ---
 tesseract_path = shutil.which("tesseract") or '/usr/bin/tesseract'
@@ -84,34 +84,23 @@ def enhance_image(input_path, output_path):
 
 
 def get_image_metadata(image_path):
-    with Image.open(image_path) as img:
-        width, height = img.size
-        result = {
-            "format": img.format,
-            "width": width,
-            "height": height,
-            "mode": img.mode,
-            "camera": "غير معروف",
-            "date": "غير متوفر",
-            "software": "غير معروف",
-            "gps": False
-        }
-        exif = img.getexif()
-        if exif:
-            readable = {}
-            for tag_id, value in exif.items():
-                tag = TAGS.get(tag_id, str(tag_id))
-                try:
-                    readable[tag] = str(value)
-                except:
-                    pass
-            if "Model" in readable:
-                result["camera"] = readable["Model"]
-            if "DateTime" in readable:
-                result["date"] = readable["DateTime"]
-            if "Software" in readable:
-                result["software"] = readable["Software"]
-            if "GPSInfo" in readable:
-                result["gps"] = True
-        return result
-        
+    try:
+        with Image.open(image_path) as img:
+            w,h=img.size
+            res={"format":img.format or "Unknown","width":w,"height":h,"mode":img.mode or "Unknown","camera":"غير معروف","date":"غير متوفر","software":"غير معروف","gps":False}
+            try:
+                exif=img._getexif()
+            except:
+                exif=None
+            if exif:
+                for k,v in exif.items():
+                    tag=ExifTags.TAGS.get(k,k)
+                    try:v=str(v)
+                    except:v="غير مقروء"
+                    if tag=="Model":res["camera"]=v
+                    elif tag=="DateTime":res["date"]=v
+                    elif tag=="Software":res["software"]=v
+                    elif tag=="GPSInfo":res["gps"]=True
+            return res
+    except Exception as e:
+        raise Exception(f"exif error: {e}")
