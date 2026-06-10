@@ -84,8 +84,9 @@ def enhance_image(input_path, output_path):
 
 
 def get_image_metadata(image_path):
-    with Image.open(image_path) as img:width, height = img.size
-         result = {
+    with Image.open(image_path) as img:
+        width, height = img.size
+        result = {
             "format": img.format,
             "width": width,
             "height": height,
