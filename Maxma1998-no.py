@@ -11,6 +11,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import services
 
 
+
 # --- 1. الإعدادات والتهيئة ---
 apihelper.ENABLE_MIDDLEWARE = True
 OWNER_ID = int(os.getenv('OWNER_ID', 0)) 
