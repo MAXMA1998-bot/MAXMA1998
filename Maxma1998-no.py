@@ -97,9 +97,10 @@ def callback_query(call):
     "تحميل أي فيديو 📥",
     "ترجمة صورة الى نص 📝",
     "تحويل صورة لـ PDF 📄",
+    "الأثر الرقمي للصور 👣",
 ]
         markup = types.InlineKeyboardMarkup(row_width=2)
-        buttons = [types.InlineKeyboardButton(my_free_names[i], callback_data=f'f{i+1}') for i in range(4)]
+        buttons = [types.InlineKeyboardButton(my_free_names[i], callback_data=f'f{i+1}') for i in range(5)]
         markup.add(*buttons)
         bot.edit_message_text("اختر الخدمة المجانية المطلوبة:", call.message.chat.id, call.message.message_id, reply_markup=markup)
     
@@ -115,8 +116,9 @@ def callback_query(call):
     elif call.data == 'f4':
         msg = bot.send_message(call.message.chat.id, "📄 أرسل الصورة التي تريد تحويلها إلى ملف PDF:")
         bot.register_next_step_handler(msg, process_image_to_pdf)
-
- 
+    elif call.data == 'f5':
+        msg = bot.send_message(call.message.chat.id,"👣 أرسل الصورة المراد تحليل أثرها الرقمي:")
+        bot.register_next_step_handler(msg, process_digital_footprint)
 
     # اشتراك ماكس (العروض المميزة المدفوعة)
     elif call.data == 'max_sub':
@@ -146,54 +148,27 @@ def callback_query(call):
 def process_enhance_image(message):
     if message.content_type == 'photo':
         chat_id = message.chat.id
-
         input_file = f"img_{chat_id}.jpg"
         output_file = f"enhanced_{chat_id}.jpg"
-
-        wait_msg = bot.send_message(
-            chat_id,
-            "⏳ جاري تحسين جودة الصورة..."
-        )
-
+        wait_msg = bot.send_message(chat_id,"⏳ جاري تحسين جودة الصورة...")
         try:
             file_info = bot.get_file(message.photo[-1].file_id)
             downloaded_file = bot.download_file(file_info.file_path)
-
-            with open(input_file, 'wb') as f:
-                f.write(downloaded_file)
-
+            with open(input_file, 'wb') as f:f.write(downloaded_file)
             services.enhance_image(input_file, output_file)
-
             with open(output_file, 'rb') as photo:
-                bot.send_photo(
-                    chat_id,
-                    photo,
-                    caption="✅ تم تحسين جودة الصورة بنجاح."
-                )
-
-        except Exception as e:
-            bot.send_message(
-                chat_id,
-                f"❌ حدث خطأ أثناء معالجة الصورة:\n{str(e)}"
-            )
-
+                bot.send_photo(chat_id,photo,caption="✅ تم تحسين جودة الصورة بنجاح.")
+        except Exception as e:bot.send_message(chat_id,f"❌ حدث خطأ أثناء معالجة الصورة:\n{str(e)}")
         finally:
             try:
                 bot.delete_message(chat_id, wait_msg.message_id)
             except:
                 pass
-
             if os.path.exists(input_file):
                 os.remove(input_file)
-
             if os.path.exists(output_file):
                 os.remove(output_file)
-
-    else:
-        bot.reply_to(
-            message,
-            "❌ يرجى إرسال صورة فقط."
-        )
+    else:bot.reply_to(message,"❌ يرجى إرسال صورة فقط.")
 
 
 def process_video_link(message):
@@ -212,6 +187,7 @@ def process_video_link(message):
         if os.path.exists(file_name): 
             os.remove(file_name)
 
+
 def process_ocr(message):
     if message.content_type == 'photo':
         chat_id = message.chat.id
@@ -221,8 +197,7 @@ def process_ocr(message):
             file_info = bot.get_file(message.photo[-1].file_id)
             downloaded_file = bot.download_file(file_info.file_path)
             with open(file_name, 'wb') as f: 
-                f.write(downloaded_file)
-            
+                f.write(downloaded_file)        
             text = services.extract_text_from_image(file_name)
             if text:
                 translated = services.translate_text(text)
@@ -239,6 +214,7 @@ def process_ocr(message):
     else:
         bot.reply_to(message, "❌ خطأ: يرجى إرسال ملف بصيغة صورة حصراً.")
 
+    
 def process_image_to_pdf(message):
     if message.content_type == 'photo':
         chat_id = message.chat.id
@@ -263,6 +239,55 @@ def process_image_to_pdf(message):
             if os.path.exists(pdf_name): os.remove(pdf_name)
     else:
         bot.reply_to(message, "❌ خطأ: يرجى إرسال صورة فقط ليتم تحويلها.")
+
+def process_digital_footprint(message):
+    if message.content_type != 'photo':
+        bot.reply_to(message, "❌ يرجى إرسال صورة فقط.")
+        return
+    chat_id = message.chat.id
+    file_name = f"footprint_{chat_id}.jpg"
+    wait_msg = bot.send_message(chat_id,"🔍 جاري تحليل الأثر الرقمي للصورة...")
+    try:
+        file_info = bot.get_file(message.photo[-1].file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        with open(file_name, 'wb') as f:
+            f.write(downloaded_file)
+        metadata = services.get_image_metadata(file_name)
+        width, height = metadata["size"]
+
+        report = f"""
+        👣 <b>تقرير الأثر الرقمي للصورة</b>
+        📷 <b>نوع الملف:</b> {metadata['format']}
+        📐 <b>الأبعاد:</b>
+        {metadata['width']} × {metadata['height']}
+        🎨 <b>نظام الألوان:</b>
+        {metadata['mode']}
+        📱 <b>الكاميرا:</b>
+        {metadata['camera']}
+        📅 <b>تاريخ الالتقاط:</b>
+        {metadata['date']}
+        🖥 <b>البرنامج المستخدم:</b>
+        {metadata['software']}
+        🌍 <b>بيانات الموقع GPS:</b>
+        {"موجودة" if metadata['gps'] else "غير موجودة"}
+
+        """
+        if len(metadata["exif"]) == 0:
+            report += "\n⚠️ لا توجد بيانات وصفية داخل الصورة.\n"
+        else:
+            report += "\n✅ تحتوي الصورة على بيانات وصفية.\n"
+        bot.send_message(chat_id,report,parse_mode="HTML" )
+    except Exception as e:
+        bot.send_message(chat_id,f"❌ حدث خطأ:\n{e}")
+    finally:
+        try:
+            bot.delete_message(chat_id, wait_msg.message_id)
+        except:
+            pass
+
+        if os.path.exists(file_name):
+            os.remove(file_name)
+
 
 def get_card_number(message, provider):
     if message.text.isdigit() and len(message.text) == 16:
