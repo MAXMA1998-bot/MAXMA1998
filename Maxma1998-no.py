@@ -115,13 +115,12 @@ def callback_query(call):
             markup = types.InlineKeyboardMarkup()
             
             if imdb_id:
-                watch_url = f"https://vidsrc.pro/embed/movie/{imdb_id}"
+                watch_url = f"https://vidsrc.xyz/embed/movie/{imdb_id}"
                 markup.add(types.InlineKeyboardButton("📺 مشاهدة الفيلم (مباشر)", url=watch_url))
                 
                 movie_title = movie.get('title', '')
                 encoded_title = urllib.parse.quote(movie_title)
-                cinemana_url = f"https://cinemana.shabakaty.com/search?q={encoded_title}"
-                markup.add(types.InlineKeyboardButton("📺 شاهد عبر سينمانا (بحث)", url=cinemana_url))
+                cinemana_url = f"https://www.google.com/search?q=site:cinemana.shabakaty.com+{encoded_title}"
             else:
                 markup.add(types.InlineKeyboardButton("📺 مشاهدة (بحث)", url=f"https://www.google.com/search?q=watch+{movie.get('title')}"))
             
