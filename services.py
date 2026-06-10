@@ -84,22 +84,33 @@ def enhance_image(input_path, output_path):
 
 
 def get_image_metadata(image_path):
-    try:
-        with Image.open(image_path) as img:
-            info = {
-                "format": img.format,
-                "size": img.size,
-                "mode": img.mode,
-                "exif": {}
-            }
-            exif = img.getexif()
-            if exif:
-                for tag_id, value in exif.items():
-                    tag = str(tag_id)
-                    try:
-                        info["exif"][tag] = str(value)
-                    except:
-                        pass
-            return info
-    except Exception as e:
-        raise Exception(f"فشل التحليل: {e}")
+    with Image.open(image_path) as img:width, height = img.size
+         result = {
+            "format": img.format,
+            "width": width,
+            "height": height,
+            "mode": img.mode,
+            "camera": "غير معروف",
+            "date": "غير متوفر",
+            "software": "غير معروف",
+            "gps": False
+        }
+        exif = img.getexif()
+        if exif:
+            readable = {}
+            for tag_id, value in exif.items():
+                tag = TAGS.get(tag_id, str(tag_id))
+                try:
+                    readable[tag] = str(value)
+                except:
+                    pass
+            if "Model" in readable:
+                result["camera"] = readable["Model"]
+            if "DateTime" in readable:
+                result["date"] = readable["DateTime"]
+            if "Software" in readable:
+                result["software"] = readable["Software"]
+            if "GPSInfo" in readable:
+                result["gps"] = True
+        return result
+        
