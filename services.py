@@ -7,6 +7,7 @@ import pytesseract
 from PIL import Image
 from urllib.parse import urlparse
 from deep_translator import GoogleTranslator
+from PIL import Image, ImageEnhance, ImageFilter
 
 # --- الإعدادات والمصادر ---
 tesseract_path = shutil.which("tesseract") or '/usr/bin/tesseract'
@@ -65,3 +66,24 @@ def convert_to_pdf(image_path, pdf_path):
     safe_pdf = get_safe_filename(pdf_path)
     with open(safe_pdf, "wb") as f:
         f.write(img2pdf.convert(image_path))
+
+
+def enhance_image(input_path, output_path):
+    if not os.path.exists(input_path):
+        raise Exception("الصورة غير موجودة")
+
+    with Image.open(input_path) as img:
+        img = img.convert("RGB")
+
+        width, height = img.size
+        img = img.resize((width * 2, height * 2), Image.LANCZOS)
+
+        img = img.filter(ImageFilter.SHARPEN)
+
+        contrast = ImageEnhance.Contrast(img)
+        img = contrast.enhance(1.3)
+
+        sharpness = ImageEnhance.Sharpness(img)
+        img = sharpness.enhance(2.0)
+
+        img.save(output_path, quality=100)
