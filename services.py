@@ -81,7 +81,7 @@ def enhance_image(input_path, output_path):
         sharpness = ImageEnhance.Sharpness(img)
         img = sharpness.enhance(2.0)
         img.save(output_path, quality=100)
-s
+
 
 def get_image_metadata(image_path):
     try:
