@@ -9,7 +9,7 @@ from telebot import types
 from flask import Flask, request
 from apscheduler.schedulers.background import BackgroundScheduler
 import services
-import movie_services
+
 
 # --- 1. الإعدادات والتهيئة ---
 apihelper.ENABLE_MIDDLEWARE = True
