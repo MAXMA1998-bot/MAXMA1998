@@ -101,42 +101,38 @@ def callback_query(call):
         msg = bot.send_message(call.message.chat.id, "أرسل لي الصورة الآن:")
         bot.register_next_step_handler(msg, process_image_to_pdf)
 
-# الدالة المعدلة
     elif call.data.startswith("view_"):
-         movie_id = call.data.split("_")[1]
-         movie = movie_services.get_movie_full_details(movie_id)
-    
-    if movie:
-        imdb_id = movie.get('imdb_id')
-        poster_path = movie.get('poster_path')
-        poster = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://via.placeholder.com/500x750?text=No+Image"
+        movie_id = call.data.split("_")[1]
+        movie = movie_services.get_movie_full_details(movie_id)
         
-        text = f"🎞 **{movie.get('title', 'غير معروف')}**\n\n📝 **القصة:** {movie.get('overview', 'لا توجد قصة')}\n⭐ **التقييم:** {movie.get('vote_average')}/10"
-        
-        markup = types.InlineKeyboardMarkup()
-        
-        if imdb_id:
-            # رابط المشاهدة المباشر
-            watch_url = f"https://vidsrc.pro/embed/movie/{imdb_id}"
-            markup.add(types.InlineKeyboardButton("📺 مشاهدة الفيلم (مباشر)", url=watch_url))
+        if movie:
+            imdb_id = movie.get('imdb_id')
+            poster_path = movie.get('poster_path')
+            poster = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://via.placeholder.com/500x750?text=No+Image"
             
-            # رابط سينمانا مع ترميز النص لضمان عمل خانة البحث
-            movie_title = movie.get('title', '')
-            encoded_title = urllib.parse.quote(movie_title)
-            cinemana_url = f"https://cinemana.shabakaty.com/search?q={encoded_title}"
-            markup.add(types.InlineKeyboardButton("📺 شاهد عبر سينمانا (بحث)", url=cinemana_url))
+            text = f"🎞 **{movie.get('title', 'غير معروف')}**\n\n📝 **القصة:** {movie.get('overview', 'لا توجد قصة')}\n⭐ **التقييم:** {movie.get('vote_average')}/10"
+            
+            markup = types.InlineKeyboardMarkup()
+            
+            if imdb_id:
+                watch_url = f"https://vidsrc.pro/embed/movie/{imdb_id}"
+                markup.add(types.InlineKeyboardButton("📺 مشاهدة الفيلم (مباشر)", url=watch_url))
+                
+                movie_title = movie.get('title', '')
+                encoded_title = urllib.parse.quote(movie_title)
+                cinemana_url = f"https://cinemana.shabakaty.com/search?q={encoded_title}"
+                markup.add(types.InlineKeyboardButton("📺 شاهد عبر سينمانا (بحث)", url=cinemana_url))
+            else:
+                markup.add(types.InlineKeyboardButton("📺 مشاهدة (بحث)", url=f"https://www.google.com/search?q=watch+{movie.get('title')}"))
+            
+            markup.add(types.InlineKeyboardButton("💡 نصيحة للمشاهدة", callback_data="help_watch"))
+            
+            try:
+                bot.send_photo(call.message.chat.id, poster, caption=text, reply_markup=markup)
+            except Exception as e:
+                bot.send_message(call.message.chat.id, text, reply_markup=markup)
         else:
-            markup.add(types.InlineKeyboardButton("📺 مشاهدة (بحث)", url=f"https://www.google.com/search?q=watch+{movie.get('title')}"))
-        
-        markup.add(types.InlineKeyboardButton("💡 نصيحة للمشاهدة", callback_data="help_watch"))
-        
-        try:
-            bot.send_photo(call.message.chat.id, poster, caption=text, reply_markup=markup)
-        except Exception as e:
-            bot.send_message(call.message.chat.id, text, reply_markup=markup)
-    else:
-        bot.answer_callback_query(call.id, "❌ فشل في جلب تفاصيل الفيلم.")
-
+            bot.answer_callback_query(call.id, "❌ فشل في جلب تفاصيل الفيلم.")
 
 
     elif call.data == 'max_sub':
