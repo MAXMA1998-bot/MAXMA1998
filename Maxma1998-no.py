@@ -107,25 +107,24 @@ def callback_query(call):
         
         if movie:
             imdb_id = movie.get('imdb_id')
+            title = movie.get('title', 'فيلم')
             poster_path = movie.get('poster_path')
             poster = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://via.placeholder.com/500x750?text=No+Image"
-            
-            text = f"🎞 **{movie.get('title', 'غير معروف')}**\n\n📝 **القصة:** {movie.get('overview', 'لا توجد قصة')}\n⭐ **التقييم:** {movie.get('vote_average')}/10"
+            text = f"🎞 **{title}**\n\n⭐ **التقييم:** {movie.get('vote_average')}/10"
             
             markup = types.InlineKeyboardMarkup()
             
             if imdb_id:
-                # الزر الأول: المشاهدة المباشرة
-                watch_url = f"https://vidsrc.xyz/embed/movie/{imdb_id}"
-                markup.add(types.InlineKeyboardButton("📺 مشاهدة الفيلم (مباشر)", url=watch_url))
+                # السيرفر الرئيسي (سريع جداً)
+                markup.add(types.InlineKeyboardButton("📺 سيرفر المشاهدة (1)", url=f"https://vidsrc.xyz/embed/movie/{imdb_id}"))
                 
-                # الزر الثاني: بحث سينمانا عبر جوجل
-                movie_title = movie.get('title', '')
-                encoded_title = urllib.parse.quote(movie_title)
+                # السيرفر الاحتياطي (يعمل عند حظر الأول)
+                markup.add(types.InlineKeyboardButton("📺 سيرفر المشاهدة (2)", url=f"https://2embed.cc/embed/movie?imdb={imdb_id}"))
+                
+                # رابط بحث سينمانا التلقائي (الأضمن للجمهور العراقي)
+                encoded_title = urllib.parse.quote(title)
                 cinemana_url = f"https://www.google.com/search?q=site:cinemana.shabakaty.com+{encoded_title}"
-                markup.add(types.InlineKeyboardButton("📺 شاهد عبر سينمانا (بحث)", url=cinemana_url))
-            else:
-                markup.add(types.InlineKeyboardButton("📺 مشاهدة (بحث)", url=f"https://www.google.com/search?q=watch+{movie.get('title')}"))
+                markup.add(types.InlineKeyboardButton("🎞 شاهد عبر سينمانا (بحث)", url=cinemana_url))
             
             markup.add(types.InlineKeyboardButton("💡 نصيحة للمشاهدة", callback_data="help_watch"))
             
@@ -135,6 +134,7 @@ def callback_query(call):
                 bot.send_message(call.message.chat.id, text, reply_markup=markup)
         else:
             bot.answer_callback_query(call.id, "❌ فشل في جلب تفاصيل الفيلم.")
+
 
 
     elif call.data == 'max_sub':
