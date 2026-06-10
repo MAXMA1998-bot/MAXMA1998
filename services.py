@@ -71,19 +71,35 @@ def convert_to_pdf(image_path, pdf_path):
 def enhance_image(input_path, output_path):
     if not os.path.exists(input_path):
         raise Exception("الصورة غير موجودة")
-
     with Image.open(input_path) as img:
         img = img.convert("RGB")
-
         width, height = img.size
         img = img.resize((width * 2, height * 2), Image.LANCZOS)
-
         img = img.filter(ImageFilter.SHARPEN)
-
         contrast = ImageEnhance.Contrast(img)
         img = contrast.enhance(1.3)
-
         sharpness = ImageEnhance.Sharpness(img)
         img = sharpness.enhance(2.0)
-
         img.save(output_path, quality=100)
+
+
+def get_image_metadata(image_path):
+    try:
+        with Image.open(image_path) as img:
+            info = {
+                "format": img.format,
+                "size": img.size,
+                "mode": img.mode,
+                "exif": {}
+            }
+            exif = img.getexif()
+            if exif:
+                for tag_id, value in exif.items():
+                    tag = str(tag_id)
+                    try:
+                        info["exif"][tag] = str(value)
+                    except:
+                        pass
+            return info
+    except Exception as e:
+        raise Exception(f"فشل التحليل: {e}")
