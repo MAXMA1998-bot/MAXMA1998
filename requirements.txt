@@ -1,11 +1,8 @@
 pytelegramBotAPI
 requests
 flask
-instaloader
 yt-dlp
-rembg
 Pillow
-onnxruntime
 pytesseract
 deep-translator
 img2pdf
