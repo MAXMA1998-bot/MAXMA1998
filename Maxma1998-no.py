@@ -254,7 +254,6 @@ def process_digital_footprint(message):
         with open(file_name, 'wb') as f:
             f.write(downloaded_file)
         metadata = services.get_image_metadata(file_name)
-        width, height = metadata["size"]
 
         report = f"""
         👣 <b>تقرير الأثر الرقمي للصورة</b>
