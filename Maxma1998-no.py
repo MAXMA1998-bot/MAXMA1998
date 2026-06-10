@@ -116,11 +116,12 @@ def callback_query(call):
             
             if imdb_id:
                 # السيرفر الرئيسي (سريع جداً)
-                markup.add(types.InlineKeyboardButton("📺 سيرفر المشاهدة (1)", url=f"https://vidsrc.xyz/embed/movie/{imdb_id}"))
+                markup.add(types.InlineKeyboardButton("📺 سيرفر المشاهدة (1)", url=f"https://www.2embed.to/embed/movie?imdb={imdb_id}"))
                 
                 # السيرفر الاحتياطي (يعمل عند حظر الأول)
+               
                 markup.add(types.InlineKeyboardButton("📺 سيرفر المشاهدة (2)", url=f"https://2embed.cc/embed/movie?imdb={imdb_id}"))
-                
+                markup.add(types.InlineKeyboardButton("🎞 شاهد عبر سينمانا (تطبيق)", url=f"intent://cinemana.shabakaty.com/movie/{imdb_id}#Intent;scheme=https;package=com.earthlink.cinemana;end"))
                 # رابط بحث سينمانا التلقائي (الأضمن للجمهور العراقي)
                 encoded_title = urllib.parse.quote(title)
                 cinemana_url = f"https://www.google.com/search?q=site:cinemana.shabakaty.com+{encoded_title}"
