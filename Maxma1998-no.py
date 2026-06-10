@@ -92,15 +92,20 @@ def callback_query(call):
 
     # الخطة المجانية
     if call.data == 'free_sub':
-        my_free_names = ["شاهد افلامك 🎬", "تحميل أي فيديو 📥", "ترجمة صورة الى نص 📝", "تحويل صورة لـ PDF 📄"]
+        my_free_names = [
+    "زيادة دقة الصور 🌅",
+    "تحميل أي فيديو 📥",
+    "ترجمة صورة الى نص 📝",
+    "تحويل صورة لـ PDF 📄",
+]
         markup = types.InlineKeyboardMarkup(row_width=2)
         buttons = [types.InlineKeyboardButton(my_free_names[i], callback_data=f'f{i+1}') for i in range(4)]
         markup.add(*buttons)
         bot.edit_message_text("اختر الخدمة المجانية المطلوبة:", call.message.chat.id, call.message.message_id, reply_markup=markup)
     
     elif call.data == 'f1':
-        msg = bot.send_message(call.message.chat.id, "🎬 <b>أهلاً بك في سينما البوت!</b>\n\nأرسل الآن اسم الفيلم باللغة الإنجليزية أو العربية:")
-        bot.register_next_step_handler(msg, show_results)
+        msg = bot.send_message(call.message.chat.id,"🌅 أرسل الصورة التي تريد تحسين جودتها الآن:")
+        bot.register_next_step_handler(msg, process_enhance_image)
     elif call.data == 'f2':
         msg = bot.send_message(call.message.chat.id, "📥 أرسل لي رابط الفيديو المراد تحميله الآن:")
         bot.register_next_step_handler(msg, process_video_link)
@@ -111,35 +116,7 @@ def callback_query(call):
         msg = bot.send_message(call.message.chat.id, "📄 أرسل الصورة التي تريد تحويلها إلى ملف PDF:")
         bot.register_next_step_handler(msg, process_image_to_pdf)
 
-    # تفاصيل الأفلام والمشاهدة
-    elif call.data.startswith("view_"):
-        movie_id = call.data.split("_")[1]
-        movie = movie_services.get_movie_full_details(movie_id)
-        
-        if movie:
-            imdb_id = movie.get('imdb_id')
-            title = movie.get('title', 'فيلم')
-            poster_path = movie.get('poster_path')
-            poster = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://via.placeholder.com/500x750?text=No+Image"
-            text = f"🎞 <b>{title}</b>\n\n⭐ <b>التقييم:</b> {movie.get('vote_average')}/10"
-            
-            markup = types.InlineKeyboardMarkup()
-            if imdb_id:
-                markup.add(types.InlineKeyboardButton("📺 سيرفر المشاهدة (1)", url=f"https://www.2embed.to/embed/movie?imdb={imdb_id}"))
-                markup.add(types.InlineKeyboardButton("📺 سيرفر المشاهدة (2)", url=f"https://2embed.cc/embed/movie?imdb={imdb_id}"))
-                markup.add(types.InlineKeyboardButton("🎞 شاهد عبر تطبيق سينمانا", url=f"intent://cinemana.shabakaty.com/movie/{imdb_id}#Intent;scheme=https;package=com.earthlink.cinemana;end"))
-                
-                encoded_title = urllib.parse.quote(title)
-                cinemana_url = f"https://www.google.com/search?q=site:cinemana.shabakaty.com+{encoded_title}"
-                markup.add(types.InlineKeyboardButton("🔍 بحث تلقائي في سينمانا", url=cinemana_url))
-            
-            markup.add(types.InlineKeyboardButton("💡 نصيحة للمشاهدة", callback_data="help_watch"))
-            try:
-                bot.send_photo(call.message.chat.id, poster, caption=text, parse_mode="HTML", reply_markup=markup)
-            except Exception:
-                bot.send_message(call.message.chat.id, text, parse_mode="HTML", reply_markup=markup)
-        else:
-            bot.send_message(call.message.chat.id, "❌ عذراً، فشل في جلب تفاصيل الفيلم المطلوبة.")
+ 
 
     # اشتراك ماكس (العروض المميزة المدفوعة)
     elif call.data == 'max_sub':
@@ -165,17 +142,59 @@ def callback_query(call):
         msg = bot.send_message(call.message.chat.id, f"لقد اخترت شبكة ({provider}).\n\nتكلفة الاشتراك الشهري كارت فئة 5$.\nالرجاء إرسال رقم كارت الشحن المكون من (16 رقماً) الآن:")
         bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
 
-# --- 6. دوال التنفيذ والوظائف الداخلية ---
-def show_results(message):
-    results = movie_services.get_movie_results(message.text)
-    if not results:
-        bot.send_message(message.chat.id, "❌ لم يتم العثور على أي نتائج تطابق بحثك.")
-        return
-    markup = types.InlineKeyboardMarkup()
-    for movie in results:
-        btn_text = f"{movie['title']} ({movie.get('release_date', 'N/A')[:4]})"
-        markup.add(types.InlineKeyboardButton(btn_text, callback_data=f"view_{movie['id']}"))
-    bot.send_message(message.chat.id, "🍿 اختر الفيلم المناسب من القائمة التالية لعرض السيرفرات:", reply_markup=markup)
+# --- 6. دوال التنفيذ والوظائف 
+def process_enhance_image(message):
+    if message.content_type == 'photo':
+        chat_id = message.chat.id
+
+        input_file = f"img_{chat_id}.jpg"
+        output_file = f"enhanced_{chat_id}.jpg"
+
+        wait_msg = bot.send_message(
+            chat_id,
+            "⏳ جاري تحسين جودة الصورة..."
+        )
+
+        try:
+            file_info = bot.get_file(message.photo[-1].file_id)
+            downloaded_file = bot.download_file(file_info.file_path)
+
+            with open(input_file, 'wb') as f:
+                f.write(downloaded_file)
+
+            services.enhance_image(input_file, output_file)
+
+            with open(output_file, 'rb') as photo:
+                bot.send_photo(
+                    chat_id,
+                    photo,
+                    caption="✅ تم تحسين جودة الصورة بنجاح."
+                )
+
+        except Exception as e:
+            bot.send_message(
+                chat_id,
+                f"❌ حدث خطأ أثناء معالجة الصورة:\n{str(e)}"
+            )
+
+        finally:
+            try:
+                bot.delete_message(chat_id, wait_msg.message_id)
+            except:
+                pass
+
+            if os.path.exists(input_file):
+                os.remove(input_file)
+
+            if os.path.exists(output_file):
+                os.remove(output_file)
+
+    else:
+        bot.reply_to(
+            message,
+            "❌ يرجى إرسال صورة فقط."
+        )
+
 
 def process_video_link(message):
     url, chat_id = message.text.strip(), message.chat.id
