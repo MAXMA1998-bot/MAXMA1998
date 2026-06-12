@@ -135,7 +135,7 @@ def callback_query(call):
             pass
         
         # إنشاء فاتورة نجوم تليجرام (10 نجوم)
-        prices = [types.LabeledPrice(label="اشتراك ماكس برو", amount=10)]
+        prices = [types.LabeledPrice(label="اشتراك ماكس برو", amount=100)]
         bot.send_invoice(
             chat_id=call.message.chat.id,
             title="اشتراك ماكس المتقدم ✨",
