@@ -81,34 +81,3 @@ def enhance_image(input_path, output_path):
         sharpness = ImageEnhance.Sharpness(img)
         img = sharpness.enhance(2.0)
         img.save(output_path, quality=100)
-
-
-def get_image_metadata(image_path):
-    try:
-        with Image.open(image_path) as img:
-            w,h=img.size
-            res={"format":img.format or "Unknown","width":w,"height":h,"mode":img.mode or "Unknown","camera":"غير معروف","date":"غير متوفر","software":"غير معروف","gps":False}
-
-            exif=None
-            try:
-                exif=img.getexif()
-            except:
-                exif=None
-
-            if exif:
-                try:
-                    for k,v in exif.items():
-                        tag=ExifTags.TAGS.get(k,k)
-                        v=str(v) if v is not None else "غير مقروء"
-
-                        if tag=="Model":res["camera"]=v
-                        elif tag=="DateTime":res["date"]=v
-                        elif tag=="Software":res["software"]=v
-                        elif tag=="GPSInfo":res["gps"]=True
-                except:
-                    pass
-
-            return res
-
-    except Exception as e:
-        return {"format":"Unknown","width":0,"height":0,"mode":"Unknown","camera":"غير معروف","date":"غير متوفر","software":"غير معروف","gps":False}
