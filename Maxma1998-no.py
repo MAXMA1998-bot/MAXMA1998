@@ -10,8 +10,6 @@ from flask import Flask, request
 from apscheduler.schedulers.background import BackgroundScheduler
 import services
 
-
-
 # --- 1. الإعدادات والتهيئة ---
 apihelper.ENABLE_MIDDLEWARE = True
 OWNER_ID = int(os.getenv('OWNER_ID', 0)) 
@@ -91,17 +89,16 @@ def callback_query(call):
     except Exception: 
         pass
 
-    # الخطة المجانية
+    # الخطة المجانية (تم تعديلها لتصبح 4 خدمات فقط)
     if call.data == 'free_sub':
         my_free_names = [
-    "زيادة دقة الصور 🌅",
-    "تحميل أي فيديو 📥",
-    "ترجمة صورة الى نص 📝",
-    "تحويل صورة لـ PDF 📄",
-    "الأثر الرقمي للصور 👣",
-]
+            "زيادة دقة الصور 🌅",
+            "تحميل أي فيديو 📥",
+            "ترجمة صورة الى نص 📝",
+            "تحويل صورة لـ PDF 📄"
+        ]
         markup = types.InlineKeyboardMarkup(row_width=2)
-        buttons = [types.InlineKeyboardButton(my_free_names[i], callback_data=f'f{i+1}') for i in range(5)]
+        buttons = [types.InlineKeyboardButton(my_free_names[i], callback_data=f'f{i+1}') for i in range(4)]
         markup.add(*buttons)
         bot.edit_message_text("اختر الخدمة المجانية المطلوبة:", call.message.chat.id, call.message.message_id, reply_markup=markup)
     
@@ -117,9 +114,6 @@ def callback_query(call):
     elif call.data == 'f4':
         msg = bot.send_message(call.message.chat.id, "📄 أرسل الصورة التي تريد تحويلها إلى ملف PDF:")
         bot.register_next_step_handler(msg, process_image_to_pdf)
-    elif call.data == 'f5':
-        msg = bot.send_message(call.message.chat.id,"👣 أرسل الصورة المراد تحليل أثرها الرقمي:")
-        bot.register_next_step_handler(msg, process_digital_footprint)
 
     # اشتراك ماكس (العروض المميزة المدفوعة)
     elif call.data == 'max_sub':
@@ -135,17 +129,48 @@ def callback_query(call):
         bot.edit_message_text("🔒 <b>عذراً، هذه الخدمة تتطلب اشتراك ماكس ✨</b>\n\nيرجى ترقية حسابك لتتمكن من استخدامها فوراً.", call.message.chat.id, call.message.message_id, parse_mode="HTML", reply_markup=markup)
         
     elif call.data == 'activate_max':
-        markup = types.InlineKeyboardMarkup(row_width=2)
-        markup.add(types.InlineKeyboardButton("🔴 Asiacell", callback_data='provider_asia'),
-                   types.InlineKeyboardButton("🔵 Zain", callback_data='provider_zain'))
-        bot.edit_message_text("الرجاء اختيار مزود الخدمة الخاص بك:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+        try:
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+        except Exception:
+            pass
         
-    elif call.data.startswith('provider_'):
-        provider = "آسياسيل" if call.data == 'provider_asia' else "زين"
-        msg = bot.send_message(call.message.chat.id, f"لقد اخترت شبكة ({provider}).\n\nتكلفة الاشتراك الشهري كارت فئة 5$.\nالرجاء إرسال رقم كارت الشحن المكون من (16 رقماً) الآن:")
-        bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
+        # إنشاء فاتورة نجوم تليجرام (10 نجوم)
+        prices = [types.LabeledPrice(label="اشتراك ماكس برو", amount=10)]
+        bot.send_invoice(
+            chat_id=call.message.chat.id,
+            title="اشتراك ماكس المتقدم ✨",
+            description="تفعيل جميع الخدمات والوظائف المدفوعة داخل البوت لمدة شهر.",
+            invoice_payload="max_premium_subscription",
+            provider_token="",  
+            currency="XTR",     
+            prices=prices
+        )
 
-# --- 6. دوال التنفيذ والوظائف 
+# --- 6. نظام استقبال ومعالجة المدفوعات (تليجرام ستارز) ---
+
+@bot.pre_checkout_query_handler(func=lambda query: True)
+def process_pre_checkout(pre_checkout_query):
+    bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
+@bot.message_handler(content_types=['successful_payment'])
+def process_successful_payment(message):
+    payment_info = message.successful_payment
+    user = message.from_user
+    
+    try: 
+        owner_report = (f"🔔 <b>طلب اشتراك ماكس جديد (نجوم):</b>\n\n"
+                        f"👤 المستخدم: {user.first_name}\n"
+                        f"🆔 الآيدي: <code>{user.id}</code>\n"
+                        f"💳 المعرف: @{user.username if user.username else 'لا يوجد'}\n"
+                        f"💰 المبلغ المدفوع: <b>{payment_info.total_amount} نجمة تليجرام</b>")
+        bot.send_message(OWNER_ID, owner_report, parse_mode="HTML")
+    except Exception: 
+        pass
+
+    bot.reply_to(message, f"🎉 <b>تم تفعيل اشتراك ماكس ✨ بنجاح!</b>\n\nشكراً لك، تم استلام {payment_info.total_amount} نجمة. يمكنك الآن الاستمتاع بجميع الخدمات دون قيود.", parse_mode="HTML")
+
+
+# --- 7. دوال التنفيذ والوظائف ---
 def process_enhance_image(message):
     if message.content_type == 'photo':
         chat_id = message.chat.id
@@ -241,66 +266,8 @@ def process_image_to_pdf(message):
     else:
         bot.reply_to(message, "❌ خطأ: يرجى إرسال صورة فقط ليتم تحويلها.")
 
-def process_digital_footprint(message):
-    if message.content_type != 'photo':
-        bot.reply_to(message, "❌ يرجى إرسال صورة فقط.")
-        return
-    chat_id = message.chat.id
-    file_name = f"footprint_{chat_id}.jpg"
-    wait_msg = bot.send_message(chat_id,"🔍 جاري تحليل الأثر الرقمي للصورة...")
-    try:
-        file_info = bot.get_file(message.photo[-1].file_id)
-        downloaded_file = bot.download_file(file_info.file_path)
-        with open(file_name, 'wb') as f:
-            f.write(downloaded_file)
-        metadata = services.get_image_metadata(file_name)
 
-        report = f"""
-        👣 <b>تقرير الأثر الرقمي للصورة</b>
-        📷 <b>نوع الملف:</b> {metadata['format']}
-        📐 <b>الأبعاد:</b>
-        {metadata['width']} × {metadata['height']}
-        🎨 <b>نظام الألوان:</b>
-        {metadata['mode']}
-        📱 <b>الكاميرا:</b>
-        {metadata['camera']}
-        📅 <b>تاريخ الالتقاط:</b>
-        {metadata['date']}
-        🖥 <b>البرنامج المستخدم:</b>
-        {metadata['software']}
-        🌍 <b>بيانات الموقع GPS:</b>
-        {"موجودة" if metadata['gps'] else "غير موجودة"}
-
-        """
-        if len(metadata["exif"]) == 0:
-            report += "\n⚠️ لا توجد بيانات وصفية داخل الصورة.\n"
-        else:
-            report += "\n✅ تحتوي الصورة على بيانات وصفية.\n"
-        bot.send_message(chat_id,report,parse_mode="HTML" )
-    except Exception as e:
-        bot.send_message(chat_id,f"❌ حدث خطأ:\n{e}")
-    finally:
-        try:
-            bot.delete_message(chat_id, wait_msg.message_id)
-        except:
-            pass
-
-        if os.path.exists(file_name):
-            os.remove(file_name)
-
-
-def get_card_number(message, provider):
-    if message.text.isdigit() and len(message.text) == 16:
-        bot.reply_to(message, "⏳ جاري مراجعة وتأكيد صلاحية الكارت، يرجى الانتظار...")
-        try: 
-            bot.send_message(OWNER_ID, f"🔔 <b>طلب اشتراك ماكس جديد:</b>\n📱 المزود: {provider}\n💳 رقم الكارت: <code>{message.text}</code>", parse_mode="HTML")
-        except Exception: 
-            pass
-    else:
-        msg = bot.reply_to(message, "❌ خطأ: رقم الكارت غير صالح. يرجى إرسال الرقم المكون من 16 رقماً فقط بدون فواصل:")
-        bot.register_next_step_handler(msg, lambda m: get_card_number(m, provider))
-
-# --- 7. تشغيل سيرفر الويب والـ Webhook ---
+# --- 8. تشغيل سيرفر الويب والـ Webhook ---
 app = Flask(__name__)
 
 @app.route('/')
