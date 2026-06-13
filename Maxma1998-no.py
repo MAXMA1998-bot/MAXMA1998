@@ -412,7 +412,7 @@ if __name__ == "__main__":
     if WEBHOOK_URL:
         bot.remove_webhook()
         bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
-                print(f"🚀 البوت تم تشغيله بنجاح عبر الـ Webhook على المنفذ: {PORT}")
+        print(f"🚀 البوت تم تشغيله بنجاح عبر الـ Webhook على المنفذ: {PORT}")
         
         # تضعهما هنا بالضبط:
         import threading
