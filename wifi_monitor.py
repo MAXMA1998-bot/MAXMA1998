@@ -26,7 +26,7 @@ import pcapy
 
 # --- الإعدادات الفنية للربط السحابي ---
 # استبدل هذا الرابط بالرابط الفعلي الحقيقي لسيرفرك على Railway
-SERVER_API_URL = "https://YOUR_RAILWAY_APP_URL.railway.app/api/wifi_update"
+SERVER_API_URL = "astonishing-wisdom-staging.up.railway.app/api/wifi_update"
 
 class Feedback:
     
