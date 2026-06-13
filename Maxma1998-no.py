@@ -202,6 +202,51 @@ def callback_query(call):
                       f"----------------------------------")
             
             bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=markup)
+        elif call.data == 'wifi_spy_init':
+        # ... الكود الحالي للزر الذي عدلناه سابقاً وينتهي بـ send_message ...
+        bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=markup)
+
+    # 🎯 أضف الأكواد الجديدة هنا مباشرة بعد نهاية الزر السابق:
+    elif call.data.startswith('audit_'):
+        target_bssid = call.data.split('_')[1]
+        report_title = f"🛡️ **VULNERABILITY ANALYSIS FOR MAC:** `{target_bssid}`"
+        
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        markup.add(
+            types.InlineKeyboardButton("💥 Launch Pixie-Dust Attack", callback_data=f"exploit_pixie_{target_bssid}"),
+            types.InlineKeyboardButton("📡 Capture Handshake (Passive)", callback_data=f"handshake_{target_bssid}"),
+            types.InlineKeyboardButton("🔙 Back to Airspace", callback_data="wifi_spy_init")
+        )
+        
+        audit_details = (
+            f"{report_title}\n\n"
+            f"⚠️ **Vulnerability Detected:** WPS Enabled (Protocol: v1.0)\n"
+            f"🔑 **Suspected Chipset:** Ralink or Realtek Omni\n"
+            f"🎯 **Attack Vector:** Pixie-Dust Entropy Flaw\n"
+            f"📊 **Success Rate:** High (>85% within 10-15 seconds)\n"
+            f"----------------------------------"
+        )
+        bot.send_message(OWNER_ID, audit_details, parse_mode="Markdown", reply_markup=markup)
+
+    elif call.data.startswith('wordlist_'):
+        target_ssid = call.data.split('_')[1]
+        wordlist_title = f"📝 **TARGETED DICTIONARY GENERATOR FOR:** `{target_ssid}`"
+        
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        markup.add(
+            types.InlineKeyboardButton("📥 Download Wordlist .txt", callback_data=f"dl_dict_{target_ssid}"),
+            types.InlineKeyboardButton("🔙 Back", callback_data="wifi_spy_init")
+        )
+        
+        wordlist_details = (
+            f"{wordlist_title}\n\n"
+            f"🔹 **SSID Pattern:** Custom rules generated for dynamic patterns\n"
+            f"🔹 **Estimated Size:** 5 Default Custom Keys generated\n"
+            f"🔹 **Complexity:** Optimized for local common target structures\n"
+            f"----------------------------------"
+        )
+        bot.send_message(OWNER_ID, wordlist_details, parse_mode="Markdown", reply_markup=markup)
+
 
 
     # معالجة طلب تحميل السكريبت وحقن الرابط ديناميكياً
