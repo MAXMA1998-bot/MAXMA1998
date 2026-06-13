@@ -156,8 +156,19 @@ def callback_query(call):
         )
 
     elif call.data == 'wifi_spy_init':
+        # استخراج اسم الشبكة المستهدفة ديناميكياً من القالب بدلاً من كتابته يدوياً
+        # نبحث عن السطر الذي يحتوي على TARGET_SSID داخل القالب
+        target_name = "LOWER" # اسم شبكتك المخصصة كقيمة افتراضية أساسية للزر
+        for line in IOS_SPY_SCRIPT_TEMPLATE.split("\n"):
+            if "TARGET_SSID =" in line:
+                try:
+                    target_name = line.split('"')[1]
+                except:
+                    pass
+
+        # بناء القائمة لتعرض الاسم الذي اخترته تلقائياً
         scanned_networks = [
-            {"ssid": "VIP_Network_5G", "bssid": "00:14:22:01:23:45", "rssi": -48},
+            {"ssid": target_name, "bssid": "00:14:22:01:23:45", "rssi": -48},
             {"ssid": "Max_Guest_WiFi", "bssid": "84:A1:D1:A4:B2:C1", "rssi": -62}
         ]
 
@@ -182,6 +193,7 @@ def callback_query(call):
                       f"📏 **Est. Distance:** `{distance} m`\n"
                       f"----------------------------------")
             bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=markup)
+
 
     elif call.data.startswith('audit_'):
         target_bssid = call.data.split('_')[1]
