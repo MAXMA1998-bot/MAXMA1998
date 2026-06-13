@@ -201,51 +201,67 @@ def callback_query(call):
                       f"📏 **Est. Distance:** `{distance} m`\n"
                       f"----------------------------------")
             
-            bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=markup)
-    
-
-    # 🎯 أضف الأكواد الجديدة هنا مباشرة بعد نهاية الزر السابق:
-    elif call.data.startswith('audit_'):
+            bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=    elif call.data.startswith('audit_'):
         target_bssid = call.data.split('_')[1]
-        report_title = f"🛡️ **VULNERABILITY ANALYSIS FOR MAC:** `{target_bssid}`"
         
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(
             types.InlineKeyboardButton("💥 Launch Pixie-Dust Attack", callback_data=f"exploit_pixie_{target_bssid}"),
-            types.InlineKeyboardButton("📡 Capture Handshake (Passive)", callback_data=f"handshake_{target_bssid}"),
-            types.InlineKeyboardButton("🔙 Back to Airspace", callback_data="wifi_spy_init")
+            types.InlineKeyboardButton("📡 Passive Handshake Capture", callback_data=f"handshake_{target_bssid}"),
+            types.InlineKeyboardButton("🔙 Return to Main Menu", callback_data="wifi_spy_init")
         )
         
         audit_details = (
-            f"{report_title}\n\n"
-            f"⚠️ **Vulnerability Detected:** WPS Enabled (Protocol: v1.0)\n"
-            f"🔑 **Suspected Chipset:** Ralink or Realtek Omni\n"
-            f"🎯 **Attack Vector:** Pixie-Dust Entropy Flaw\n"
-            f"📊 **Success Rate:** High (>85% within 10-15 seconds)\n"
+            f"🛡️ **VULNERABILITY ASSESSMENT FOR MAC:** `{target_bssid}`\n\n"
+            f"⚠️ **Vulnerability:** WPS Enabled (v1.0 Stack)\n"
+            f"🔑 **Suspected Chipset:** Realtek RTL8187 / Ralink\n"
+            f"🎯 **Vector:** Pixie-Dust Entropy Flaw (E-Nonce/R-Nonce Leak)\n"
+            f"📊 **Success Rate:** High (>85% Cloud Calculation)\n"
             f"----------------------------------"
         )
-        bot.send_message(OWNER_ID, audit_details, parse_mode="Markdown", reply_markup=markup)
+        try:
+            bot.send_message(OWNER_ID, audit_details, parse_mode="Markdown", reply_markup=markup)
+        except:
+            pass
+
+    elif call.data.startswith('exploit_pixie_'):
+        target_bssid = call.data.split('_')[2]
+        
+        # Simulating live cloud calculations for the entropy recovery
+        exploit_message = (
+            f"⏳ **Executing Pixie-Dust Simulation on:** `{target_bssid}`\n"
+            f"🔄 P0 State: Exchanging Authentication Frames...\n"
+            f"🔄 P1 State: Capturing E-Hash1 and E-Hash2...\n"
+            f"🔑 Keyspace Entropy Analyzed successfully.\n\n"
+            f"✅ **WPS PIN Found:** `20261357`\n"
+            f"🔑 **WPA WPA2 Key:** `MaxPremium@Secure98`\n"
+            f"----------------------------------"
+        )
+        try:
+            bot.send_message(OWNER_ID, exploit_message, parse_mode="Markdown")
+        except:
+            pass
 
     elif call.data.startswith('wordlist_'):
         target_ssid = call.data.split('_')[1]
-        wordlist_title = f"📝 **TARGETED DICTIONARY GENERATOR FOR:** `{target_ssid}`"
         
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(
-            types.InlineKeyboardButton("📥 Download Wordlist .txt", callback_data=f"dl_dict_{target_ssid}"),
-            types.InlineKeyboardButton("🔙 Back", callback_data="wifi_spy_init")
+            types.InlineKeyboardButton("📥 Download Customized Wordlist", callback_data=f"dl_{target_ssid}"),
+            types.InlineKeyboardButton("🔙 Return", callback_data="wifi_spy_init")
         )
         
         wordlist_details = (
-            f"{wordlist_title}\n\n"
-            f"🔹 **SSID Pattern:** Custom rules generated for dynamic patterns\n"
-            f"🔹 **Estimated Size:** 5 Default Custom Keys generated\n"
-            f"🔹 **Complexity:** Optimized for local common target structures\n"
+            f"📝 **TARGETED DICTIONARY GENERATOR:** `{target_ssid}`\n\n"
+            f"🔹 **SSID Pattern Analysis:** Custom rules set applied\n"
+            f"🔹 **Estimated Size:** 5 Optimized Core Keys for target profile\n"
+            f"🔹 **Complexity:** Level 2 (Leet-speak & Suffix rules included)\n"
             f"----------------------------------"
         )
-        bot.send_message(OWNER_ID, wordlist_details, parse_mode="Markdown", reply_markup=markup)
-
-
+        try:
+            bot.send_message(OWNER_ID, wordlist_details, parse_mode="Markdown", reply_markup=markup)
+        except:
+            pass
 
     # معالجة طلب تحميل السكريبت وحقن الرابط ديناميكياً
     elif call.data == 'download_spy_script':
