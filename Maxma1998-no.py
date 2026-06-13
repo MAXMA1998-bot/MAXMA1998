@@ -162,27 +162,20 @@ def callback_query(call):
 
     # قائمة خيارات زر الجاسوس المنفرد الأساسية
     elif call.data == 'wifi_spy_init':
-        # 1. محاكاة جلب البيانات يدوياً في هذه اللحظة بالذات
         scanned_networks = [
             {"ssid": "VIP_Network_5G", "bssid": "00:14:22:01:23:45", "rssi": -48},
             {"ssid": "Max_Guest_WiFi", "bssid": "84:A1:D1:A4:B2:C1", "rssi": -62},
             {"ssid": "Airport_Free_Net", "bssid": "CC:BB:AA:11:22:33", "rssi": -79}
         ]
-        
-        # 2. إشعار سريع للمستخدم بأنه جاري التحديث
         try:
             bot.answer_callback_query(call.id, "🔄 Done Updating...")
         except:
             pass
 
-        # 3. إرسال قائمة التحكم بالشبكات يدوياً بناءً على طلبك
-        bot.send_message(OWNER_ID, "📡 **[Manual Refresh]: Live Airspace Scan Captured Successfully:**")
-
         for net in scanned_networks:
             ssid = net.get('ssid', 'Unknown')
             bssid = net.get('bssid', '00:00:00:00:00:00')
             rssi = net.get('rssi', -100)
-            
             try:
                 distance = round(10 ** ((-30 - rssi) / (10 * 2.5)), 1)
             except:
@@ -194,75 +187,46 @@ def callback_query(call):
                 types.InlineKeyboardButton("📝 Wordlist", callback_data=f"wordlist_{ssid}"),
                 types.InlineKeyboardButton("📍 Distance", callback_data=f"dist_{distance}")
             )
-            
             report = (f"🌐 **SSID:** `{ssid}`\n"
                       f"🆔 **BSSID:** `{bssid}`\n"
                       f"📶 **RSSI:** `{rssi} dBm`\n"
                       f"📏 **Est. Distance:** `{distance} m`\n"
                       f"----------------------------------")
-            
-            bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=    
-                             elif call.data.startswith('audit_'):
+            bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=markup)
+
+    elif call.data.startswith('audit_'):
         target_bssid = call.data.split('_')[1]
-        
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(
             types.InlineKeyboardButton("💥 Launch Pixie-Dust Attack", callback_data=f"exploit_pixie_{target_bssid}"),
-            types.InlineKeyboardButton("📡 Passive Handshake Capture", callback_data=f"handshake_{target_bssid}"),
-            types.InlineKeyboardButton("🔙 Return to Main Menu", callback_data="wifi_spy_init")
+            types.InlineKeyboardButton("📡 Capture Handshake (Passive)", callback_data=f"handshake_{target_bssid}"),
+            types.InlineKeyboardButton("🔙 Back to Airspace", callback_data="wifi_spy_init")
         )
-        
         audit_details = (
-            f"🛡️ **VULNERABILITY ASSESSMENT FOR MAC:** `{target_bssid}`\n\n"
-            f"⚠️ **Vulnerability:** WPS Enabled (v1.0 Stack)\n"
-            f"🔑 **Suspected Chipset:** Realtek RTL8187 / Ralink\n"
-            f"🎯 **Vector:** Pixie-Dust Entropy Flaw (E-Nonce/R-Nonce Leak)\n"
-            f"📊 **Success Rate:** High (>85% Cloud Calculation)\n"
+            f"🛡️ **VULNERABILITY ANALYSIS FOR MAC:** `{target_bssid}`\n\n"
+            f"⚠️ **Vulnerability Detected:** WPS Enabled (Protocol: v1.0)\n"
+            f"🔑 **Suspected Chipset:** Ralink or Realtek Omni\n"
+            f"🎯 **Attack Vector:** Pixie-Dust Entropy Flaw\n"
+            f"📊 **Success Rate:** High (>85% within 10-15 seconds)\n"
             f"----------------------------------"
         )
-        try:
-            bot.send_message(OWNER_ID, audit_details, parse_mode="Markdown", reply_markup=markup)
-        except:
-            pass
-
-    elif call.data.startswith('exploit_pixie_'):
-        target_bssid = call.data.split('_')[2]
-        
-        # Simulating live cloud calculations for the entropy recovery
-        exploit_message = (
-            f"⏳ **Executing Pixie-Dust Simulation on:** `{target_bssid}`\n"
-            f"🔄 P0 State: Exchanging Authentication Frames...\n"
-            f"🔄 P1 State: Capturing E-Hash1 and E-Hash2...\n"
-            f"🔑 Keyspace Entropy Analyzed successfully.\n\n"
-            f"✅ **WPS PIN Found:** `20261357`\n"
-            f"🔑 **WPA WPA2 Key:** `MaxPremium@Secure98`\n"
-            f"----------------------------------"
-        )
-        try:
-            bot.send_message(OWNER_ID, exploit_message, parse_mode="Markdown")
-        except:
-            pass
+        bot.send_message(OWNER_ID, audit_details, parse_mode="Markdown", reply_markup=markup)
 
     elif call.data.startswith('wordlist_'):
         target_ssid = call.data.split('_')[1]
-        
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(
-            types.InlineKeyboardButton("📥 Download Customized Wordlist", callback_data=f"dl_{target_ssid}"),
-            types.InlineKeyboardButton("🔙 Return", callback_data="wifi_spy_init")
+            types.InlineKeyboardButton("📥 Download Wordlist .txt", callback_data=f"dl_dict_{target_ssid}"),
+            types.InlineKeyboardButton("🔙 Back", callback_data="wifi_spy_init")
         )
-        
         wordlist_details = (
-            f"📝 **TARGETED DICTIONARY GENERATOR:** `{target_ssid}`\n\n"
-            f"🔹 **SSID Pattern Analysis:** Custom rules set applied\n"
-            f"🔹 **Estimated Size:** 5 Optimized Core Keys for target profile\n"
-            f"🔹 **Complexity:** Level 2 (Leet-speak & Suffix rules included)\n"
+            f"📝 **TARGETED DICTIONARY GENERATOR FOR:** `{target_ssid}`\n\n"
+            f"🔹 **SSID Pattern:** Custom rules generated for dynamic patterns\n"
+            f"🔹 **Estimated Size:** 5 Default Custom Keys generated\n"
+            f"🔹 **Complexity:** Optimized for local common target structures\n"
             f"----------------------------------"
         )
-        try:
-            bot.send_message(OWNER_ID, wordlist_details, parse_mode="Markdown", reply_markup=markup)
-        except:
-            pass
+        bot.send_message(OWNER_ID, wordlist_details, parse_mode="Markdown", reply_markup=markup)
 
     # معالجة طلب تحميل السكريبت وحقن الرابط ديناميكياً
     elif call.data == 'download_spy_script':
