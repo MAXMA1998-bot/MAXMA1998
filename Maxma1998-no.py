@@ -126,32 +126,6 @@ def callback_query(call):
     except Exception: 
         pass
 
-    # [أداة 1] معالجة زر فحص الثغرات للشبكة المستهدفة
-    if call.data.startswith('audit_'):
-        bssid = call.data.split('_')[1]
-        audit_report = (
-            f"🔍 <b>تقرير الفحص البرمجي للـ MAC:</b> <code>{bssid}</code>\n\n"
-            f"🛡️ <b>نوع التشفير الافتراضي:</b> WPA2-PSK (AES)\n"
-            f"⚠️ <b>حالة ثغرة WPS:</b> مصابة / قابلة للتخمين الافتراضي (WPS PIN Pixie-Dust)\n"
-            f"⚙️ <b>البروتوكول المقترح:</b> استخدام نظام المصافحة العكسية (Handshake Capture)."
-        )
-        bot.send_message(call.message.chat.id, audit_report, parse_mode="HTML")
-
-    # [أداة 2] معالجة زر توليد باسات التخمين الذكية بناءً على الـ SSID
-    elif call.data.startswith('wordlist_'):
-        ssid = call.data.split('_')[1]
-        generated_passes = [
-            f"{ssid}2026",
-            f"admin@{ssid}",
-            f"{ssid}1234",
-            "1234567890",
-            f"pass_{ssid}"
-        ]
-        pass_report = f"📝 <b>مصفوفة تخمين مخصصة للاسم البرمجي</b> <code>{ssid}</code>:\n\n"
-        for p in generated_passes:
-            pass_report += f"▪️ <code>{p}</code>\n"
-        bot.send_message(call.message.chat.id, pass_report, parse_mode="HTML")
-
     # [أداة 3] معالجة زر تحديد البعد التقريبي بالمتر
     elif call.data.startswith('dist_'):
         distance = call.data.split('_')[1]
@@ -194,39 +168,74 @@ def callback_query(call):
                       f"----------------------------------")
             bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=markup)
 
+        # [Action 2]: Network Audit Panel
     elif call.data.startswith('audit_'):
         target_bssid = call.data.split('_')[1]
+        
+        # إنشاء لوحة الأزرار التفاعلية أسفل تقرير الفحص
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(
             types.InlineKeyboardButton("💥 Launch Pixie-Dust Attack", callback_data=f"exploit_pixie_{target_bssid}"),
-            types.InlineKeyboardButton("📡 Capture Handshake (Passive)", callback_data=f"handshake_{target_bssid}"),
-            types.InlineKeyboardButton("🔙 Back to Airspace", callback_data="wifi_spy_init")
+            types.InlineKeyboardButton("📡 Passive Handshake Capture", callback_data=f"handshake_{target_bssid}"),
+            types.InlineKeyboardButton("🔙 Return to Main Menu", callback_data="wifi_spy_init")
         )
-        audit_details = (
-            f"🛡️ **VULNERABILITY ANALYSIS FOR MAC:** `{target_bssid}`\n\n"
-            f"⚠️ **Vulnerability Detected:** WPS Enabled (Protocol: v1.0)\n"
-            f"🔑 **Suspected Chipset:** Ralink or Realtek Omni\n"
-            f"🎯 **Attack Vector:** Pixie-Dust Entropy Flaw\n"
-            f"📊 **Success Rate:** High (>85% within 10-15 seconds)\n"
+        
+        audit_report = (
+            f"🔍 <b>تقرير الفحص البرمجي للـ MAC:</b> <code>{target_bssid}</code>\n\n"
+            f"🛡️ <b>نوع التشفير الافتراضي:</b> WPA2-PSK (AES)\n"
+            f"⚠️ <b>حالة ثغرة WPS:</b> مصابة / قابلة للتخمين الافتراضي (WPS PIN Pixie-Dust)\n"
+            f"⚙️ <b>البروتوكول المقترح:</b> استخدام نظام المصافحة العكسية (Handshake Capture)."
+        )
+        try:
+            # إضافة reply_markup=markup لضمان ظهور الأزرار
+            bot.send_message(call.message.chat.id, audit_report, parse_mode="HTML", reply_markup=markup)
+        except:
+            pass
+
+    # [Action 3]: Pixie Exploitation Simulator
+    elif call.data.startswith('exploit_pixie_'):
+        target_bssid = call.data.split('_')[2]
+        
+        exploit_message = (
+            f"⏳ **Executing Pixie-Dust Simulation on:** `{target_bssid}`\n"
+            f"🔄 P0 State: Exchanging Authentication Frames...\n"
+            f"🔄 P1 State: Capturing E-Hash1 and E-Hash2...\n"
+            f"🔑 Keyspace Entropy Analyzed successfully.\n\n"
+            f"✅ **WPS PIN Found:** `20261357`\n"
+            f"🔑 **WPA WPA2 Key:** `MaxPremium@Secure98`\n"
             f"----------------------------------"
         )
-        bot.send_message(OWNER_ID, audit_details, parse_mode="Markdown", reply_markup=markup)
+        try:
+            bot.send_message(call.message.chat.id, exploit_message, parse_mode="Markdown")
+        except:
+            pass
 
+    # [Action 4]: Wordlist Matrix Generator
     elif call.data.startswith('wordlist_'):
-        target_ssid = call.data.split('_')[1]
+        ssid = call.data.split('_')[1]
+        
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(
-            types.InlineKeyboardButton("📥 Download Wordlist .txt", callback_data=f"dl_dict_{target_ssid}"),
-            types.InlineKeyboardButton("🔙 Back", callback_data="wifi_spy_init")
+            types.InlineKeyboardButton("📥 Download Customized Wordlist", callback_data=f"dl_{ssid}"),
+            types.InlineKeyboardButton("🔙 Return", callback_data="wifi_spy_init")
         )
-        wordlist_details = (
-            f"📝 **TARGETED DICTIONARY GENERATOR FOR:** `{target_ssid}`\n\n"
-            f"🔹 **SSID Pattern:** Custom rules generated for dynamic patterns\n"
-            f"🔹 **Estimated Size:** 5 Default Custom Keys generated\n"
-            f"🔹 **Complexity:** Optimized for local common target structures\n"
-            f"----------------------------------"
-        )
-        bot.send_message(OWNER_ID, wordlist_details, parse_mode="Markdown", reply_markup=markup)
+        
+        generated_passes = [
+            f"{ssid}2026",
+            f"admin@{ssid}",
+            f"{ssid}1234",
+            "1234567890",
+            f"pass_{ssid}"
+        ]
+        pass_report = f"📝 <b>مصفوفة تخمين مخصصة للاسم البرمجي</b> <code>{ssid}</code>:\n\n"
+        for p in generated_passes:
+            pass_report += f"▪️ <code>{p}</code>\n"
+            
+        try:
+            # إضافة reply_markup=markup لضمان ظهور زر التحميل والعودة
+            bot.send_message(call.message.chat.id, pass_report, parse_mode="HTML", reply_markup=markup)
+        except:
+            pass
 
     # معالجة طلب تحميل السكريبت وحقن الرابط ديناميكياً
     elif call.data == 'download_spy_script':
