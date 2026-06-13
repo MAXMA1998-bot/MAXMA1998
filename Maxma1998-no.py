@@ -414,9 +414,6 @@ if __name__ == "__main__":
         bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
         print("Server is starting via Webhook...")
         
-        import threading
-        import wifi_monitor
-        threading.Thread(target=wifi_monitor.start_monitoring, daemon=True).start()
         
         app.run(host='0.0.0.0', port=PORT)
     else:
