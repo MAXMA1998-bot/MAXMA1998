@@ -25,7 +25,6 @@ import requests
 SERVER_API_URL = "{webhook_url}/api/wifi_update" 
 
 def scan_iphone_airspace():
-    # مصفوفة تحاكي البيانات الحية الملتقطة عبر عتاد الهاتف المحمول
     real_scanned_networks = [
         {{"ssid": "VIP_Network_5G", "bssid": "00:14:22:01:23:45", "rssi": -48}},
         {{"ssid": "Max_Guest_WiFi", "bssid": "84:A1:D1:A4:B2:C1", "rssi": -62}},
@@ -126,8 +125,8 @@ def callback_query(call):
     except Exception: 
         pass
 
-    # [أداة 3] معالجة زر تحديد البعد التقريبي بالمتر
-    elif call.data.startswith('dist_'):
+    # [تم الإصلاح]: تحويل الشرط الأول هنا إلى if صريحة بدلاً من elif لمنع انهيار مفسر بايثون
+    if call.data.startswith('dist_'):
         distance = call.data.split('_')[1]
         bot.send_message(
             call.message.chat.id, 
@@ -141,10 +140,6 @@ def callback_query(call):
             {"ssid": "Max_Guest_WiFi", "bssid": "84:A1:D1:A4:B2:C1", "rssi": -62},
             {"ssid": "Airport_Free_Net", "bssid": "CC:BB:AA:11:22:33", "rssi": -79}
         ]
-        try:
-            bot.answer_callback_query(call.id, "🔄 Done Updating...")
-        except:
-            pass
 
         for net in scanned_networks:
             ssid = net.get('ssid', 'Unknown')
@@ -168,11 +163,10 @@ def callback_query(call):
                       f"----------------------------------")
             bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=markup)
 
-        # [Action 2]: Network Audit Panel
+    # [Action 2]: Network Audit Panel
     elif call.data.startswith('audit_'):
         target_bssid = call.data.split('_')[1]
         
-        # إنشاء لوحة الأزرار التفاعلية أسفل تقرير الفحص
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(
             types.InlineKeyboardButton("💥 Launch Pixie-Dust Attack", callback_data=f"exploit_pixie_{target_bssid}"),
@@ -187,14 +181,15 @@ def callback_query(call):
             f"⚙️ <b>البروتوكول المقترح:</b> استخدام نظام المصافحة العكسية (Handshake Capture)."
         )
         try:
-            # إضافة reply_markup=markup لضمان ظهور الأزرار
             bot.send_message(call.message.chat.id, audit_report, parse_mode="HTML", reply_markup=markup)
         except:
             pass
 
     # [Action 3]: Pixie Exploitation Simulator
     elif call.data.startswith('exploit_pixie_'):
-        target_bssid = call.data.split('_')[2]
+        # معالجة استخراج البي إس إس آي دي بشكل آمن عبر الـ split
+        parts = call.data.split('_')
+        target_bssid = parts[2] if len(parts) > 2 else "Unknown"
         
         exploit_message = (
             f"⏳ **Executing Pixie-Dust Simulation on:** `{target_bssid}`\n"
@@ -232,7 +227,6 @@ def callback_query(call):
             pass_report += f"▪️ <code>{p}</code>\n"
             
         try:
-            # إضافة reply_markup=markup لضمان ظهور زر التحميل والعودة
             bot.send_message(call.message.chat.id, pass_report, parse_mode="HTML", reply_markup=markup)
         except:
             pass
@@ -355,6 +349,9 @@ def process_enhance_image(message):
     else: bot.reply_to(message,"❌ يرجى إرسال صورة فقط.")
 
 def process_video_link(message):
+    if not message.text:
+        bot.reply_to(message, "❌ يرجى إرسال رابط نصي صحيح.")
+        return
     url, chat_id = message.text.strip(), message.chat.id
     file_name = f"video_{chat_id}.mp4"
     wait_msg = bot.send_message(chat_id, "⏳ جاري تحميل وتجهيز الفيديو، يرجى الانتظار...")
@@ -429,7 +426,6 @@ def wifi_update():
     
     networks_list = data['networks']
     
-    # رسالة ترحيبية بالتدفق الجديد
     bot.send_message(OWNER_ID, f"📡 <b>[بث حي]: تم استقبال شبكات جديدة محيطة بالآيفون!</b>\nإليك قائمة التحكم المخصصة لكل شبكة:")
 
     for net in networks_list:
@@ -437,26 +433,25 @@ def wifi_update():
         bssid = net.get('bssid', '00:00:00:00:00:00')
         rssi = net.get('rssi', -100)
         
-        # حساب هندسي تقريبي للمسافة بناءً على الإشارة
         try:
             distance = round(10 ** ((-30 - rssi) / (10 * 2.5)), 1)
         except:
             distance = "غير محدد"
 
-        # ربط الـ Callback بأزرار تحتوي على المتغيرات الفريدة للشبكة
         markup = types.InlineKeyboardMarkup(row_width=2)
         markup.add(
-            types.InlineKeyboardButton("🔍 فحص الثغرات", callback_data=f"audit_{bssid}"),
-            types.InlineKeyboardButton("📝 توليد باسات", callback_data=f"wordlist_{ssid}"),
-            types.InlineKeyboardButton("📍 تحديد البُعد", callback_data=f"dist_{distance}")
+            types.InlineKeyboardButton("🔍 Audit Network", callback_data=f"audit_{bssid}"),
+            types.InlineKeyboardButton("📝 Wordlist", callback_data=f"wordlist_{ssid}"),
+            types.InlineKeyboardButton("📍 Distance", callback_data=f"dist_{distance}")
         )
         
-        report = (f"🌐 <b>الشبكة:</b> <code>{ssid}</code>\n"
-                  f"🆔 <b>الـ MAC:</b> <code>{bssid}</code>\n"
-                  f"📶 <b>الإشارة:</b> <code>{rssi} dBm</code>\n"
-                  f"📏 <b>المسافة التقريبية:</b> حوالي <code>{distance} متر</code>")
+        report = (f"🌐 **SSID:** `{ssid}`\n"
+                  f"🆔 **BSSID:** `{bssid}`\n"
+                  f"📶 **RSSI:** `{rssi} dBm`\n"
+                  f"📏 **Est. Distance:** `{distance} m`\n"
+                  f"----------------------------------")
         
-        bot.send_message(OWNER_ID, report, parse_mode="HTML", reply_markup=markup)
+        bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=markup)
         
     return jsonify({"status": "success", "message": "تم إعداد لوحات التحكم بالشبكات بنجاح."}), 200
 
@@ -476,8 +471,6 @@ if __name__ == "__main__":
         bot.remove_webhook()
         bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
         print("Server is starting via Webhook...")
-        
-        
         app.run(host='0.0.0.0', port=PORT)
     else:
         print("Error: WEBHOOK_URL not found.")
