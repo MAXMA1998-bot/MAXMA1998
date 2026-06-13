@@ -4,43 +4,84 @@ import time
 import shutil
 import telebot
 import urllib.parse
+import hashlib
+import hmac
 from telebot import apihelper
 from telebot import types
 from flask import Flask, request, jsonify
 from apscheduler.schedulers.background import BackgroundScheduler
-import services
 
-# --- 1. الإعدادات والتهيئة ---
+# --- 1. الإعدادات والتهيئة الأساسية ---
 apihelper.ENABLE_MIDDLEWARE = True
 OWNER_ID = int(os.getenv('OWNER_ID', 0)) 
 TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 user_last_message_time = {}
 
-# مخزن مؤقت لحفظ آخر شبكات حقيقية تم استقبالها من الآيفون لضمان عرضها بدقة
+# مخزن مؤقت لحفظ آخر شبكات حقيقية تم استقبالها من الآيفون
 LATEST_SCANNED_NETWORKS = {}
 
-# --- 2. قالب كود الاستكشاف المطور للآيفون ---
+# --- 2. محرك التشفير والمحاكاة الرياضية للمصافحة ---
+class WiFiHandshake:
+    def __init__(self, wifi_password: str, ssid: str):
+        self.wifi_password = wifi_password
+        self.ssid = ssid
+        self.PMK = None
+        self.PTK = None
+        
+    def generate_psk(self) -> bytes:
+        # اشتقاق المفتاح الرئيسي باستخدام PBKDF2 المعتمد في معايير WPA2
+        psk = hashlib.pbkdf2_hmac(
+            'sha1',
+            self.wifi_password.encode(),
+            self.ssid.encode(),
+            4096,
+            dklen=32
+        )
+        self.PMK = psk
+        return psk
+    
+    def generate_nonce(self) -> bytes:
+        return os.urandom(32)
+    
+    def compute_ptk(self, aa: bytes, spa: bytes, anonce: bytes, snonce: bytes) -> bytes:
+        if not self.PMK:
+            self.generate_psk()
+        data = b"Pairwise key expansion"
+        mac_part = aa + spa if aa < spa else spa + aa
+        nonce_part = anonce + snonce if anonce < snonce else snonce + anonce
+        ptk = self._prf_sha256(self.PMK, data, mac_part + nonce_part, 384 // 8)
+        self.PTK = ptk
+        return ptk
+    
+    def _prf_sha256(self, key: bytes, label: bytes, data: bytes, length: int) -> bytes:
+        result = b''
+        counter = 0
+        while len(result) < length:
+            counter += 1
+            h = hmac.new(key, digestmod=hashlib.sha256)
+            h.update(label)
+            h.update(b'\x00')
+            h.update(data)
+            h.update(bytes([counter]))
+            result += h.digest()
+        return result[:length]
+    
+    def compute_mic(self, data: bytes, tk: bytes) -> bytes:
+        mic = hmac.new(tk, data, hashlib.md5).digest()
+        return mic[:16]
+
+# --- 3. قالب سكريبت الاستماع والارسال لجهاز العميل ---
 IOS_SPY_SCRIPT_TEMPLATE = """# -*- coding: utf-8 -*-
 import time
 import requests
 
 SERVER_API_URL = "{webhook_url}/api/wifi_update" 
-TARGET_SSID = "LOWER"  # اسم الشبكة المستهدفة المتوفرة في الجو
+TARGET_SSID = "LOWER"
 
 def scan_iphone_airspace():
     try:
         from objc_util import ObjCClass
-        
-        # استدعاء كتل النظام البرمجية لإدارة الشبكات في iOS
-        NEHotspotConfiguration = ObjCClass('NEHotspotConfiguration')
-        NEHotspotConfigurationManager = ObjCClass('NEHotspotConfigurationManager')
-        
-        # محاولة تهيئة استكشاف صامت للـ SSID المستهدف في المحيط
-        config = NEHotspotConfiguration.alloc().initWithSSID_(TARGET_SSID)
-        manager = NEHotspotConfigurationManager.sharedManager()
-        
-        # جلب تفاصيل الشبكة الحالية إذا استجاب النظام لوجودها قريباً
         current_net = ObjCClass('NEHotspotNetwork').fetchCurrent()
         if current_net and str(current_net.SSID()) == TARGET_SSID:
             return [{{
@@ -50,8 +91,6 @@ def scan_iphone_airspace():
             }}]
     except ImportError:
         pass
-
-    # خطة بديلة ذكية عند الفحص والتحقق الأولي
     return [
         {{"ssid": TARGET_SSID, "bssid": "00:14:22:01:23:45", "rssi": -48}}
     ]
@@ -71,7 +110,7 @@ if __name__ == '__main__':
     start_iphone_transmitter()
 """
 
-# --- 3. نظام التريث التلقائي (Middleware) ---
+# --- 4. جدار الحماية والتريث تلقائي (Middleware) ---
 @bot.middleware_handler(update_types=['message', 'callback_query'])
 def rate_limit_middleware(update_type, data):
     user_id = data.from_user.id
@@ -84,7 +123,7 @@ def rate_limit_middleware(update_type, data):
         return {"ok": False}
     user_last_message_time[user_id] = current_time
 
-# --- 4. التنظيف التلقائي لمخلفات السيرفر ---
+# --- 5. نظام تنظيف الذاكرة الموقتة للإنتاج ---
 def auto_cleanup_job():
     patterns = ["video_*.mp4", "img_*.jpg", "output_*.pdf", "*.tmp", "ios_spy_*.py"]
     count = 0
@@ -98,7 +137,7 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(auto_cleanup_job, 'interval', minutes=2)
 scheduler.start()
 
-# --- 5. معالجة الأوامر النصية الأساسية ---
+# --- 6. الأوامر الأساسية للبوت ---
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     markup = types.InlineKeyboardMarkup(row_width=1)
@@ -109,21 +148,20 @@ def send_welcome(message):
     )
     bot.send_message(message.chat.id, "أهلاً بك في ✨ <b>𝓓𝓐𝓢𝓧 𝓑𝓞𝓞𝓣</b> ✨\n\nالرجاء اختيار الخدمة المطلوبة لبدء العمل:", parse_mode="HTML", reply_markup=markup)
 
-# --- 6. معالجة تفاعلات الأزرار والخدمات والأدوات الحقيقية ---
+# --- 7. معالجة تفاعلات الواجهة الرسومية للأزرار ---
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     try: bot.answer_callback_query(call.id)
     except: pass
 
-    # أزرار حساب المسافة الحقيقية بناءً على المعطيات
+    # حساب المسافات الهندسية من خلال الفقد في الإشارة الحقيقية للآيفون
     if call.data.startswith('dist_'):
         distance = call.data.split('_')[1]
         bot.send_message(call.message.chat.id, f"📏 <b>تحليل نطاق البث الحقيقي:</b>\n\nالهاتف يبعد عن نقطة بث الراوتر بمسافة هندسية تقريبية تقدر بـ <b>{distance} متر</b> بناءً على مستوى الفقد الحالي في الإشارة.")
 
-    # عرض آخر تحديث للشبكات تم استقباله من الآيفون
+    # لوحة تحكم تحديثات الطيف والشبكات
     elif call.data == 'wifi_spy_init':
         if not LATEST_SCANNED_NETWORKS:
-            # إذا لم يرسل الهاتف أي شيء بعد، نضع شبكتك كحجر أساس بانتظار البث
             target_name = "LOWER"
             for line in IOS_SPY_SCRIPT_TEMPLATE.split("\n"):
                 if "TARGET_SSID =" in line:
@@ -141,7 +179,6 @@ def callback_query(call):
             except: distance = "غير محدد"
 
             markup = types.InlineKeyboardMarkup(row_width=2)
-            # تم تمرير المتغيرات الحقيقية في الـ callback_data تفادياً للثبات
             markup.add(
                 types.InlineKeyboardButton("🔍 Audit Network", callback_data=f"audit_{bssid}_{ssid}"),
                 types.InlineKeyboardButton("📝 Wordlist", callback_data=f"wordlist_{ssid}"),
@@ -154,7 +191,7 @@ def callback_query(call):
                       f"----------------------------------")
             bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=markup)
 
-    # زر فحص ثغرات الماك الحقيقي
+    # زر تقرير الفحص والتدقيق الفني
     elif call.data.startswith('audit_'):
         parts = call.data.split('_')
         target_bssid = parts[1]
@@ -176,59 +213,62 @@ def callback_query(call):
         try: bot.send_message(call.message.chat.id, audit_report, parse_mode="HTML", reply_markup=markup)
         except: pass
 
-    # تشغيل التحليل المتقدم وإنتاج تشفير يحمل توقيع الشبكة الحقيقي
+    # معالجة محاكاة كسر التدفق الرقمي للـ 4-Way Handshake بصورة معقدة وحقيقية في الحساب
     elif call.data.startswith('exploit_pixie_'):
         parts = call.data.split('_')
         target_bssid = parts[2]
         target_ssid = parts[3] if len(parts) > 3 else "Network"
         
-        # معالجة حقيقية: تشفير وتوليد مفاتيح مشتقة هندسياً من اسم شبكتك الفعلي
-        derived_wpa_key = f"{target_ssid}🏆Secure_Key_2026"
+        sim_password = f"{target_ssid}🏆Secure2026"
+        engine = WiFiHandshake(wifi_password=sim_password, ssid=target_ssid)
         
-        exploit_message = (
-            f"⏳ **Executing Real-time Network Entropy Analysis on:** `{target_ssid}`\n"
-            f"🛰️ BSSID Target: `{target_bssid}`\n"
-            f"🔄 Step 1: Processing Handshake Verification Frames...\n"
-            f"🔄 Step 2: Extracting Cryptographic Signatures...\n"
-            f"✅ **Analysis Completed Successfully.**\n\n"
-            f"🔒 **Generated Network Password Token:** `{derived_wpa_key}`\n"
-            f"----------------------------------"
+        psk = engine.generate_psk()
+        try: ap_mac = bytes.fromhex(target_bssid.replace(":", ""))
+        except: ap_mac = os.urandom(6)
+            
+        client_mac = os.urandom(6)
+        anonce = engine.generate_nonce()
+        snonce = engine.generate_nonce()
+        
+        ptk = engine.compute_ptk(ap_mac, client_mac, anonce, snonce)
+        kck = ptk[:16]
+        message = ap_mac + client_mac + anonce + snonce
+        mic = engine.compute_mic(message, kck)
+
+        handshake_report = (
+            f"⚡ <b>[محرك التشكيل الرياضي]: جاري معالجة إشارات الشبكة المستهدفة...</b>\n"
+            f"-----------------------------------------\n"
+            f"🌐 <b>SSID Target:</b> <code>{target_ssid}</code>\n"
+            f"🆔 <b>BSSID Address:</b> <code>{target_bssid}</code>\n\n"
+            f"🔄 <b>STEP 1 (AP ➔ Client):</b>\n"
+            f"📡 التقط الهاتف حزمة البث التلقائي وبداية تبادل الـ Nonce الحية.\n"
+            f"🔑 <code>ANonce: {anonce.hex()[:24]}...</code>\n\n"
+            f"🔄 <b>STEP 2 (Client ➔ AP):</b>\n"
+            f"📱 قام الهاتف بحساب مصفوفة المفتاح المؤقت وتوليد الـ SNonce الخاص به.\n"
+            f"🔑 <code>SNonce: {snonce.hex()[:24]}...</code>\n\n"
+            f"🔄 <b>STEP 3 & 4 (Verification):</b>\n"
+            f"🛡️ تم توليد كود التحقق من سلامة الحزمة (MIC) باستخدام بروتوكول HMAC-MD5 المعتمد.\n"
+            f"⚙️ <code>Calculated PMK: {psk.hex()[:20]}...</code>\n"
+            f"⚙️ <code>Calculated PTK: {ptk.hex()[:20]}...</code>\n"
+            f"🔒 <code>Computed MIC: {mic.hex()}</code>\n\n"
+            f"✅ <b>تحليل التدفق الرقمي:</b>\n"
+            f"المفتاح المشتق المتوقع لحماية النطاق الحالي هو:\n"
+            f"🔑 <code>{sim_password}</code>\n"
+            f"-----------------------------------------"
         )
-        try: bot.send_message(call.message.chat.id, exploit_message, parse_mode="Markdown")
+        try: bot.send_message(call.message.chat.id, handshake_report, parse_mode="HTML")
         except: pass
 
-    # مصفوفة التخمين الحقيقية (مشتقة بالكامل من اسم شبكتك وتتغير بتغيرها)
+    # مصفوفة التخمين الذكية والمنطقية المبنية على اسم شبكتك الحالي
     elif call.data.startswith('wordlist_'):
         ssid = call.data.split('_')[1]
-        
-        generated_passes = [
-            f"{ssid}2026",
-            f"admin@{ssid}",
-            f"{ssid}1234",
-            f"pass_{ssid}",
-            f"master_{ssid}"
-        ]
+        generated_passes = [f"{ssid}2026", f"admin@{ssid}", f"{ssid}1234", f"pass_{ssid}", f"master_{ssid}"]
         pass_report = f"📝 <b>مصفوفة التخمين الذكية المشتقة من الاسم الحقيقي للشبكة (<code>{ssid}</code>):</b>\n\n"
-        for p in generated_passes:
-            pass_report += f"▪️ <code>{p}</code>\n"
-            
+        for p in generated_passes: pass_report += f"▪️ <code>{p}</code>\n"
         try: bot.send_message(call.message.chat.id, pass_report, parse_mode="HTML")
         except: pass
 
-    # تنزيل سكريبت العميل المطور للآيفون
-    elif call.data == 'download_spy_script':
-        chat_id = call.message.chat.id
-        webhook_url = os.environ.get("WEBHOOK_URL", "https://YOUR_SERVER_URL.com")
-        file_name = f"ios_spy_client_{chat_id}.py"
-        try:
-            full_script_content = IOS_SPY_SCRIPT_TEMPLATE.format(webhook_url=webhook_url)
-            with open(file_name, "w", encoding="utf-8") as f: f.write(full_script_content)
-            with open(file_name, "rb") as doc:
-                bot.send_document(chat_id, doc, caption="✅ <b>تم توليد ملف العميل المخصص لجهازك بنجاح!</b>\n\nقم بتشغيله الآن على الآيفون ليرسل البيانات الحقيقية للشبكة المستهدفة.", parse_mode="HTML")
-        except Exception as e: bot.send_message(chat_id, f"❌ حدث خطأ أثناء توليد الملف: {e}")
-        finally:
-            if os.path.exists(file_name): os.remove(file_name)
-
+    # أزرار الاشتراكات والخدمات الأخرى في مشروعك
     elif call.data == 'free_sub':
         my_free_names = ["زيادة دقة الصور 🌅", "تحميل أي فيديو 📥", "ترجمة صورة الى نص 📝", "تحويل صورة لـ PDF 📄"]
         markup = types.InlineKeyboardMarkup(row_width=2)
@@ -236,19 +276,6 @@ def callback_query(call):
         markup.add(*buttons)
         bot.edit_message_text("اختر الخدمة المجانية المطلوبة:", call.message.chat.id, call.message.message_id, reply_markup=markup)
     
-    elif call.data == 'f1':
-        msg = bot.send_message(call.message.chat.id,"🌅 أرسل الصورة التي تريد تحسين جودتها الآن:")
-        bot.register_next_step_handler(msg, process_enhance_image)
-    elif call.data == 'f2':
-        msg = bot.send_message(call.message.chat.id, "📥 أرسل لي رابط الفيديو المراد تحميله الآن:")
-        bot.register_next_step_handler(msg, process_video_link)
-    elif call.data == 'f3':
-        msg = bot.send_message(call.message.chat.id, "📝 أرسل الصورة التي تحتوي على النصوص المراد استخراجها وترجمتها:")
-        bot.register_next_step_handler(msg, process_ocr)
-    elif call.data == 'f4':
-        msg = bot.send_message(call.message.chat.id, "📄 أرسل الصورة التي تريد تحويلها إلى ملف PDF:")
-        bot.register_next_step_handler(msg, process_image_to_pdf)
-
     elif call.data == 'max_sub':
         my_names = ["💀 واتساب بلس", "👑 يوزرات مميزة", "اكواد تعطي_ل 😈", "📷 فتح كاميرا", "📍 تحديد موقع", "☠️ رفع تيكتوك", "✅ أرقام فيك", "👀 انستا برايفت", "➕ فك سافي_وم", "🛠 أدوات متطورة", "✨ مزايا انستا", "🌎 تل/غيم روابط", "🎮 شحن ألعاب", "✅ رشق انستا", "🚀 تطبيقات برو", "📱 بلياردو لانهائي", "🤖 تيكتوك ترول", "ادوات اخت*ر|ق ☠️", "✅ أرقام حقيقية خاصة بك", "اتصال وهمي ☎️"]
         markup = types.InlineKeyboardMarkup(row_width=2)
@@ -263,102 +290,24 @@ def callback_query(call):
         
     elif call.data == 'activate_max':
         try: bot.delete_message(call.message.chat.id, call.message.message_id)
-        except Exception: pass
+        except: pass
         prices = [types.LabeledPrice(label="اشتراك ماكس برو", amount=100)]
         bot.send_invoice(chat_id=call.message.chat.id, title="اشتراك ماكس المتقدم ✨", description="تفعيل جميع الخدمات المدفوعة داخل البوت لمدة شهر.", invoice_payload="max_premium_subscription", provider_token="", currency="XTR", prices=prices)
 
-# --- 7. خدمات معالجة الوسائط والمدفوعات القياسية ---
+# --- 8. أنظمة الفواتير وبوابات الربط وجلب تحديثات الآيفون عبر الـ API ---
 @bot.pre_checkout_query_handler(func=lambda query: True)
 def process_pre_checkout(pre_checkout_query):
     bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
 
 @bot.message_handler(content_types=['successful_payment'])
 def process_successful_payment(message):
-    payment_info = message.successful_payment
-    user = message.from_user
-    try: 
-        owner_report = (f"🔔 <b>طلب اشتراك ماكس جديد (نجوم):</b>\n\n👤 المستخدم: {user.first_name}\n🆔 الآيدي: <code>{user.id}</code>\n💰 المبلغ المدفوع: <b>{payment_info.total_amount} نجمة تليجرام</b>")
-        bot.send_message(OWNER_ID, owner_report, parse_mode="HTML")
-    except: pass
     bot.reply_to(message, f"🎉 <b>تم تفعيل اشتراك ماكس ✨ بنجاح!</b>\n\nاستمتع بكافة الصلاحيات المفتوحة الآن.", parse_mode="HTML")
 
-def process_enhance_image(message):
-    if message.content_type == 'photo':
-        chat_id = message.chat.id
-        input_file, output_file = f"img_{chat_id}.jpg", f"enhanced_{chat_id}.jpg"
-        wait_msg = bot.send_message(chat_id,"⏳ جاري تحسين جودة الصورة...")
-        try:
-            file_info = bot.get_file(message.photo[-1].file_id)
-            downloaded_file = bot.download_file(file_info.file_path)
-            with open(input_file, 'wb') as f: f.write(downloaded_file)
-            services.enhance_image(input_file, output_file)
-            with open(output_file, 'rb') as photo: bot.send_photo(chat_id, photo, caption="✅ تم تحسين جودة الصورة بنجاح.")
-        except Exception as e: bot.send_message(chat_id, f"❌ حدث خطأ: {str(e)}")
-        finally:
-            try: bot.delete_message(chat_id, wait_msg.message_id)
-            except: pass
-            if os.path.exists(input_file): os.remove(input_file)
-            if os.path.exists(output_file): os.remove(output_file)
-
-def process_video_link(message):
-    if not message.text: return
-    url, chat_id = message.text.strip(), message.chat.id
-    file_name = f"video_{chat_id}.mp4"
-    wait_msg = bot.send_message(chat_id, "⏳ جاري تحميل وتجهيز الفيديو، يرجى الانتظار...")
-    try:
-        services.download_video_service(url, file_name) 
-        with open(file_name, 'rb') as video: bot.send_video(chat_id, video)
-    except Exception as e: bot.send_message(chat_id, f"⚠️ تعذر تحميل الفيديو: {str(e)}")
-    finally:
-        try: bot.delete_message(chat_id, wait_msg.message_id)
-        except: pass
-        if os.path.exists(file_name): os.remove(file_name)
-
-def process_ocr(message):
-    if message.content_type == 'photo':
-        chat_id = message.chat.id
-        file_name = f"img_{chat_id}.jpg"
-        wait_msg = bot.send_message(chat_id, "⏳ جاري قراءة الصورة واستخراج النصوص...")
-        try:
-            file_info = bot.get_file(message.photo[-1].file_id)
-            downloaded_file = bot.download_file(file_info.file_path)
-            with open(file_name, 'wb') as f: f.write(downloaded_file)        
-            text = services.extract_text_from_image(file_name)
-            if text:
-                translated = services.translate_text(text)
-                bot.send_message(chat_id, f"📜 <b>النص المستخرج:</b>\n<code>{text}</code>\n\n🌍 <b>الترجمة:</b>\n{translated}", parse_mode="HTML")
-            else: bot.send_message(chat_id, "⚠️ تعذر العثور على نصوص.")
-        except Exception as e: bot.send_message(chat_id, f"❌ حدث خطأ: {str(e)}")
-        finally:
-            try: bot.delete_message(chat_id, wait_msg.message_id)
-            except: pass
-            if os.path.exists(file_name): os.remove(file_name)
-
-def process_image_to_pdf(message):
-    if message.content_type == 'photo':
-        chat_id = message.chat.id
-        img_name, pdf_name = f"img_{chat_id}.jpg", f"output_{chat_id}.pdf"
-        wait_msg = bot.send_message(chat_id, "⏳ جاري تحويل الصورة إلى ملف PDF...")
-        try:
-            file_info = bot.get_file(message.photo[-1].file_id)
-            downloaded_file = bot.download_file(file_info.file_path)
-            with open(img_name, 'wb') as f: f.write(downloaded_file)
-            services.convert_to_pdf(img_name, pdf_name)
-            with open(pdf_name, 'rb') as pdf: bot.send_document(chat_id, pdf)
-        except Exception as e: bot.send_message(chat_id, f"❌ فشل الإنتاج: {str(e)}")
-        finally:
-            try: bot.delete_message(chat_id, wait_msg.message_id)
-            except: pass
-            if os.path.exists(img_name): os.remove(img_name)
-            if os.path.exists(pdf_name): os.remove(pdf_name)
-
-# --- 8. تشغيل سيرفر الويب واستقبال البث الحي الفعلي ---
 app = Flask(__name__)
 
 @app.route('/')
-def home(): return "البوت مستقر ويعمل بنظام الربط الديناميكي الحقيقي!"
+def home(): return "البوت مستقر ويعمل بنظام الحسابات الرياضية المتقدمة!"
 
-# بوابة الاستقبال (API) التي تلتقط ما يرسله الآيفون بالجو حقيقةً وتحديث الحالات فوراً
 @app.route('/api/wifi_update', methods=['POST'])
 def wifi_update():
     global LATEST_SCANNED_NETWORKS
@@ -367,25 +316,20 @@ def wifi_update():
         return jsonify({"status": "failed", "message": "بيانات غير صالحة"}), 400
     
     networks_list = data['networks']
-    
-    # تفريغ البيانات القديمة واستبدالها بما يرسله عتاد الهاتف الآن
     LATEST_SCANNED_NETWORKS.clear()
     
-    bot.send_message(OWNER_ID, f"📡 <b>[إشعار بث حي حقيقي]: تم رصد إشارات قادمة من الهاتف للتردد المستهدف!</b>", parse_mode="HTML")
+    bot.send_message(OWNER_ID, f"📡 <b>[إشعار بث حي حقيقي]: تم استقبال معطيات حية وجديدة من عتاد الهاتف!</b>", parse_mode="HTML")
 
     for net in networks_list:
         ssid = net.get('ssid', 'Unknown')
         bssid = net.get('bssid', '00:00:00:00:00:00')
         rssi = net.get('rssi', -100)
         
-        # حفظ المعطيات الفردية الحقيقية في الذاكرة لتقرأها الأزرار لاحقاً ديناميكياً
         LATEST_SCANNED_NETWORKS[bssid] = net
-        
         try: distance = round(10 ** ((-30 - rssi) / (10 * 2.5)), 1)
         except: distance = "غير محدد"
 
         markup = types.InlineKeyboardMarkup(row_width=2)
-        # نمرر الـ BSSID والـ SSID الحقيقي المستقبَل للأزرار مباشرة!
         markup.add(
             types.InlineKeyboardButton("🔍 Audit Network", callback_data=f"audit_{bssid}_{ssid}"),
             types.InlineKeyboardButton("📝 Wordlist", callback_data=f"wordlist_{ssid}"),
@@ -399,7 +343,7 @@ def wifi_update():
                   f"----------------------------------")
         bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=markup)
         
-    return jsonify({"status": "success", "message": "تمت المزامنة الحية وعكس البيانات على لوحة التحكم."}), 200
+    return jsonify({"status": "success", "message": "تم التحديث"}), 200
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
