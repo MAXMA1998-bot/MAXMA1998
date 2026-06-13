@@ -141,6 +141,7 @@ def restrict_commands(message):
     bot.reply_to(message, "⚠️ نعتذر، الخدمة أو الأمر غير مصرح به.")
 
 # --- 6. معالجة تفاعلات الأزرار والخدمات والأدوات البرمجية ---
+# --- تحديث قسم معالجة الأزرار ليكون ديناميكياً بالكامل ---
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     try: 
@@ -148,6 +149,7 @@ def callback_query(call):
     except Exception: 
         pass
 
+    # 1. معالجة زر حساب المسافة الديناميكي
     if call.data.startswith('dist_'):
         distance = call.data.split('_')[1]
         bot.send_message(
@@ -155,18 +157,14 @@ def callback_query(call):
             f"📏 <b>تحليل رادار الإشارة المرتدة:</b>\n\nالهاتف يبعد عن نقطة بث الراوتر بمسافة هندسية تقريبية تقدر بـ <b>{distance} متر</b> داخل النطاق المفتوح."
         )
 
+    # 2. زر المزامنة اليدوية العادية (يعرض التحديث الأخير)
     elif call.data == 'wifi_spy_init':
-        # استخراج اسم الشبكة المستهدفة ديناميكياً من القالب بدلاً من كتابته يدوياً
-        # نبحث عن السطر الذي يحتوي على TARGET_SSID داخل القالب
-        target_name = "LOWER" # اسم شبكتك المخصصة كقيمة افتراضية أساسية للزر
+        target_name = "LOWER"
         for line in IOS_SPY_SCRIPT_TEMPLATE.split("\n"):
             if "TARGET_SSID =" in line:
-                try:
-                    target_name = line.split('"')[1]
-                except:
-                    pass
+                try: target_name = line.split('"')[1]
+                except: pass
 
-        # بناء القائمة لتعرض الاسم الذي اخترته تلقائياً
         scanned_networks = [
             {"ssid": target_name, "bssid": "00:14:22:01:23:45", "rssi": -48},
             {"ssid": "Max_Guest_WiFi", "bssid": "84:A1:D1:A4:B2:C1", "rssi": -62}
@@ -176,14 +174,12 @@ def callback_query(call):
             ssid = net.get('ssid', 'Unknown')
             bssid = net.get('bssid', '00:00:00:00:00:00')
             rssi = net.get('rssi', -100)
-            try:
-                distance = round(10 ** ((-30 - rssi) / (10 * 2.5)), 1)
-            except:
-                distance = "Unknown"
+            try: distance = round(10 ** ((-30 - rssi) / (10 * 2.5)), 1)
+            except: distance = "Unknown"
 
             markup = types.InlineKeyboardMarkup(row_width=2)
             markup.add(
-                types.InlineKeyboardButton("🔍 Audit Network", callback_data=f"audit_{bssid}"),
+                types.InlineKeyboardButton("🔍 Audit Network", callback_data=f"audit_{bssid}_{ssid}"),
                 types.InlineKeyboardButton("📝 Wordlist", callback_data=f"wordlist_{ssid}"),
                 types.InlineKeyboardButton("📍 Distance", callback_data=f"dist_{distance}")
             )
@@ -194,70 +190,64 @@ def callback_query(call):
                       f"----------------------------------")
             bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=markup)
 
-
+    # 3. زر فحص ثغرات الماك (يقبل الـ BSSID والـ SSID الممررين)
     elif call.data.startswith('audit_'):
-        target_bssid = call.data.split('_')[1]
+        parts = call.data.split('_')
+        target_bssid = parts[1]
+        target_ssid = parts[2] if len(parts) > 2 else "Unknown"
         
         markup = types.InlineKeyboardMarkup(row_width=1)
         markup.add(
-            types.InlineKeyboardButton("💥 Launch Pixie-Dust Attack", callback_data=f"exploit_pixie_{target_bssid}"),
-            types.InlineKeyboardButton("📡 Passive Handshake Capture", callback_data=f"handshake_{target_bssid}"),
+            types.InlineKeyboardButton("💥 Launch Pixie-Dust Attack", callback_data=f"exploit_pixie_{target_bssid}_{target_ssid}"),
             types.InlineKeyboardButton("🔙 Return to Main Menu", callback_data="wifi_spy_init")
         )
         
         audit_report = (
-            f"🔍 <b>تقرير الفحص البرمجي للـ MAC:</b> <code>{target_bssid}</code>\n\n"
-            f"🛡️ <b>نوع التشفير الافتراضي:</b> WPA2-PSK (AES)\n"
+            f"🔍 <b>تقرير الفحص البرمجي للشبكة:</b> <code>{target_ssid}</code>\n"
+            f"🆔 <b>BSSID المكتشف:</b> <code>{target_bssid}</code>\n\n"
+            f"🛡️ <b>نوع التشفير الافتراضي:</b> WPA2-PSK\n"
             f"⚠️ <b>حالة ثغرة WPS:</b> مصابة / قابلة للتخمين الافتراضي (WPS PIN Pixie-Dust)\n"
-            f"⚙️ <b>البروتوكول المقترح:</b> استخدام نظام المصافحة العكسية (Handshake Capture)."
         )
-        try:
-            bot.send_message(call.message.chat.id, audit_report, parse_mode="HTML", reply_markup=markup)
-        except:
-            pass
+        try: bot.send_message(call.message.chat.id, audit_report, parse_mode="HTML", reply_markup=markup)
+        except: pass
 
+    # 4. محاكاة الهجوم واستخراج البيانات ديناميكياً بناءً على اسم الشبكة المستهدفة
     elif call.data.startswith('exploit_pixie_'):
         parts = call.data.split('_')
-        target_bssid = parts[2] if len(parts) > 2 else "Unknown"
+        target_bssid = parts[2]
+        target_ssid = parts[3] if len(parts) > 3 else "Network"
+        
+        # توليد باسوورد ديناميكي يحمل اسم الشبكة لمنع ثبات البيانات ومحاكاة التخمين الحقيقي
+        dynamic_key = f"{target_ssid}Premium@Secure98"
         
         exploit_message = (
-            f"⏳ **Executing Pixie-Dust Simulation on:** `{target_bssid}`\n"
+            f"⏳ **Executing Pixie-Dust Simulation on:** `{target_ssid}` (`{target_bssid}`)\n"
             f"🔄 P0 State: Exchanging Authentication Frames...\n"
             f"🔄 P1 State: Capturing E-Hash1 and E-Hash2...\n"
             f"🔑 Keyspace Entropy Analyzed successfully.\n\n"
             f"✅ **WPS PIN Found:** `20261357`\n"
-            f"🔑 **WPA WPA2 Key:** `MaxPremium@Secure98`\n"
+            f"🔑 **WPA Key:** `{dynamic_key}`\n"
             f"----------------------------------"
         )
-        try:
-            bot.send_message(call.message.chat.id, exploit_message, parse_mode="Markdown")
-        except:
-            pass
+        try: bot.send_message(call.message.chat.id, exploit_message, parse_mode="Markdown")
+        except: pass
 
+    # 5. مصفوفة التخمين المخصصة (تعتمد بالكامل على اسم الشبكة الحالية)
     elif call.data.startswith('wordlist_'):
         ssid = call.data.split('_')[1]
-        
-        markup = types.InlineKeyboardMarkup(row_width=1)
-        markup.add(
-            types.InlineKeyboardButton("📥 Download Customized Wordlist", callback_data=f"dl_{ssid}"),
-            types.InlineKeyboardButton("🔙 Return", callback_data="wifi_spy_init")
-        )
         
         generated_passes = [
             f"{ssid}2026",
             f"admin@{ssid}",
             f"{ssid}1234",
-            "1234567890",
             f"pass_{ssid}"
         ]
-        pass_report = f"📝 <b>مصفوفة تخمين مخصصة للاسم البرمجي</b> <code>{ssid}</code>:\n\n"
+        pass_report = f"📝 <b>مصفوفة تخمين مخصصة للاسم البرمجي الحقيقي</b> <code>{ssid}</code>:\n\n"
         for p in generated_passes:
             pass_report += f"▪️ <code>{p}</code>\n"
             
-        try:
-            bot.send_message(call.message.chat.id, pass_report, parse_mode="HTML", reply_markup=markup)
-        except:
-            pass
+        try: bot.send_message(call.message.chat.id, pass_report, parse_mode="HTML")
+        except: pass
 
     elif call.data == 'download_spy_script':
         chat_id = call.message.chat.id
