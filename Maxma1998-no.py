@@ -202,9 +202,7 @@ def callback_query(call):
                       f"----------------------------------")
             
             bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=markup)
-        elif call.data == 'wifi_spy_init':
-        # ... الكود الحالي للزر الذي عدلناه سابقاً وينتهي بـ send_message ...
-        bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=markup)
+    
 
     # 🎯 أضف الأكواد الجديدة هنا مباشرة بعد نهاية الزر السابق:
     elif call.data.startswith('audit_'):
