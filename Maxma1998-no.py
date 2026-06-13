@@ -201,7 +201,8 @@ def callback_query(call):
                       f"📏 **Est. Distance:** `{distance} m`\n"
                       f"----------------------------------")
             
-            bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=    elif call.data.startswith('audit_'):
+            bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=    
+                             elif call.data.startswith('audit_'):
         target_bssid = call.data.split('_')[1]
         
         markup = types.InlineKeyboardMarkup(row_width=1)
