@@ -412,14 +412,12 @@ if __name__ == "__main__":
     if WEBHOOK_URL:
         bot.remove_webhook()
         bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
-        print(f"🚀 البوت تم تشغيله بنجاح عبر الـ Webhook على المنفذ: {PORT}")
+        print("Server is starting via Webhook...")
         
-        # تضعهما هنا بالضبط:
         import threading
         import wifi_monitor
         threading.Thread(target=wifi_monitor.start_monitoring, daemon=True).start()
         
         app.run(host='0.0.0.0', port=PORT)
-
-‏    else:
-‏        print("⚠️ خطأ في التشغيل: لم يتم العثور على متغير البيئة WEBHOOK_URL.")
+    else:
+        print("Error: WEBHOOK_URL not found.")
