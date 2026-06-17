@@ -1,150 +1,122 @@
-# -*- coding: utf-8 -*-
 import glob
 import os
 import time
 import shutil
 import telebot
 import urllib.parse
-import hashlib
-import hmac
-import requests
 from telebot import apihelper
 from telebot import types
 from flask import Flask, request, jsonify
 from apscheduler.schedulers.background import BackgroundScheduler
+import services
 
-# --- 1. الإعدادات والتهيئة الأساسية ---
+# --- 1. الإعدادات والتهيئة ---
 apihelper.ENABLE_MIDDLEWARE = True
 OWNER_ID = int(os.getenv('OWNER_ID', 0)) 
 TOKEN = os.environ.get('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 user_last_message_time = {}
 
-# مخازن مؤقتة للبيانات الحية القادمة من الكمبيوتر عبر الـ API
-LATEST_PC_INTERFACES = []  # لحفظ كروت الشبكة الحقيقية
-
-# --- 2. محرك التشفير والمحاكاة الرياضية للمصافحة ---
-class WiFiHandshake:
-    def __init__(self, wifi_password: str, ssid: str):
-        self.wifi_password = wifi_password
-        self.ssid = ssid
-        self.PMK = None
-        self.PTK = None
-        
-    def generate_psk(self) -> bytes:
-        psk = hashlib.pbkdf2_hmac('sha1', self.wifi_password.encode(), self.ssid.encode(), 4096, dklen=32)
-        self.PMK = psk
-        return psk
-    
-    def generate_nonce(self) -> bytes:
-        return os.urandom(32)
-    
-    def compute_ptk(self, aa: bytes, spa: bytes, anonce: bytes, snonce: bytes) -> bytes:
-        if not self.PMK: self.generate_psk()
-        data = b"Pairwise key expansion"
-        mac_part = aa + spa if aa < spa else spa + aa
-        nonce_part = anonce + snonce if anonce < snonce else snonce + anonce
-        ptk = self._prf_sha256(self.PMK, data, mac_part + nonce_part, 384 // 8)
-        self.PTK = ptk
-        return ptk
-    
-    def _prf_sha256(self, key: bytes, label: bytes, data: bytes, length: int) -> bytes:
-        result = b''
-        counter = 0
-        while len(result) < length:
-            counter += 1
-            h = hmac.new(key, digestmod=hashlib.sha256)
-            h.update(label); h.update(b'\x00'); h.update(data); h.update(bytes([counter]))
-            result += h.digest()
-        return result[:length]
-    
-    def compute_mic(self, data: bytes, tk: bytes) -> bytes:
-        mic = hmac.new(tk, data, hashlib.md5).digest()
-        return mic[:16]
-
-# --- 3. جدار الحماية والتريث تلقائي (Middleware) ---
+# --- 2. نظام التريث التلقائي (Middleware) ---
 @bot.middleware_handler(update_types=['message', 'callback_query'])
 def rate_limit_middleware(update_type, data):
     user_id = data.from_user.id
-    if user_id == OWNER_ID: return
+    if user_id == OWNER_ID: 
+        return
+    
     current_time = time.time()
     last_time = user_last_message_time.get(user_id, 0)
+    
     if current_time - last_time < 1:
-        if update_type == 'message': bot.reply_to(data, "⏳ تريث قليلاً قبل إرسال الطلب التالي!")
-        else: bot.answer_callback_query(data.id, "⏳ تريث قليلاً!")
+        if update_type == 'message':
+            bot.reply_to(data, "⏳ تريث قليلاً قبل إرسال الطلب التالي!")
+        else:
+            bot.answer_callback_query(data.id, "⏳ تريث قليلاً!")
         return {"ok": False}
+    
     user_last_message_time[user_id] = current_time
 
-# --- 4. نظام تنظيف الذاكرة الموقتة للإنتاج ---
+# --- 3. التنظيف التلقائي للمخلفات السيرفر ---
 def auto_cleanup_job():
-    patterns = ["video_*.mp4", "img_*.jpg", "output_*.pdf", "*.tmp"]
+    patterns = ["video_*.mp4", "img_*.jpg", "output_*.pdf", "*.tmp", "ios_scan_*.py"]
+    count = 0
     for pattern in patterns:
         for f in glob.glob(pattern):
-            try: os.remove(f)
-            except: pass
+            try:
+                os.remove(f)
+                count += 1
+            except Exception:
+                pass
+    if count > 0: 
+        print(f"🧹 [تنظيف تلقائي]: تم مسح {count} من الملفات المؤقتة بنجاح.")
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(auto_cleanup_job, 'interval', minutes=2)
 scheduler.start()
 
-# --- 5. الأوامر الأساسية للبوت ---
+# --- 4. معالجة الأوامر النصية الأساسية ---
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     markup = types.InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        types.InlineKeyboardButton("الاشتراك المجاني 🔓", callback_data='free_sub'),
-        types.InlineKeyboardButton("اشتراك ماكس ✨ 👑", callback_data='max_sub'),
-        types.InlineKeyboardButton("📶 لوحة تحكم الشبكات المتصلة والترددات الحية", callback_data='wifi_spy_init')
+    
+    # التحقق مما إذا كان المستخدم هو المالك لعرض الزر الحصري لفحص الشبكة
+    if message.from_user.id == OWNER_ID:
+        markup.add(
+            types.InlineKeyboardButton("الاشتراك المجاني 🔓", callback_data='free_sub'),
+            types.InlineKeyboardButton("اشتراك ماكس ✨ 👑", callback_data='max_sub'),
+            types.InlineKeyboardButton("🔍 كشف أجهزة الشبكة المحتلة", callback_data='net_scan_init')
+        )
+    else:
+        markup.add(
+            types.InlineKeyboardButton("الاشتراك المجاني 🔓", callback_data='free_sub'),
+            types.InlineKeyboardButton("اشتراك ماكس ✨ 👑", callback_data='max_sub')
+        )
+        
+    bot.send_message(
+        message.chat.id, 
+        "أهلاً بك في ✨ <b><b><b><b><b><b><b><b><b><b><b><b><b><b><b><b>𝓜𝓐𝓧 𝓑𝓞𝓞𝓣</b></b></b></b></b></b></b></b></b></b></b></b></b></b></b></b> ✨\n\nالرجاء اختيار نوع الخدمة أو الاشتراك لبدء العمل:", 
+        parse_mode="HTML", 
+        reply_markup=markup
     )
-    bot.send_message(message.chat.id, "أهلاً بك في ✨ <b>𝓓𝓐𝓢𝓧 𝓑𝓞𝓞𝓣</b> ✨\n\nالرجاء اختيار الخدمة المطلوبة لبدء العمل:", parse_mode="HTML", reply_markup=markup)
 
-# --- 6. معالجة تفاعلات الواجهة الرسومية للأزرار ---
+@bot.message_handler(commands=['storage'])
+def check_storage(message):
+    if message.from_user.id != OWNER_ID: 
+        return
+    total, used, free = shutil.disk_usage("/")
+    response = (f"📊 <b>حالة ذاكرة تخزين السيرفر:</b>\n"
+                f"💾 الإجمالي: {total // (1024*1024)} MB\n"
+                f"📉 المستهلك: {used // (1024*1024)} MB\n"
+                f"✅ المتبقي المتاح: {free // (1024*1024)} MB")
+    bot.reply_to(message, response, parse_mode="HTML")
+
+@bot.message_handler(func=lambda message: message.text.startswith('/'))
+def restrict_commands(message):
+    if message.from_user.id == OWNER_ID or message.text == '/start': 
+        return
+    bot.reply_to(message, "⚠️ نعتذر، الخدمة أو الأمر غير مصرح به.")
+
+# --- 5. معالجة تفاعلات الأزرار والخدمات والأدوات البرمجية ---
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
-    global LATEST_PC_INTERFACES
-    try: bot.answer_callback_query(call.id)
-    except: pass
+    try: 
+        bot.answer_callback_query(call.id)
+    except Exception: 
+        pass
 
-    if call.data == 'wifi_spy_init':
-        # إذا استقبلنا كروت شبكة حقيقية من برنامج الكمبيوتر، يتم عرضها مباشرة
-        if LATEST_PC_INTERFACES:
-            interfaces_str = ", ".join(LATEST_PC_INTERFACES)
-            markup = types.InlineKeyboardMarkup(row_width=1)
-            markup.add(
-                types.InlineKeyboardButton("🔍 قراءة تفصيلية للكروت المكتشفة", callback_data="audit_00:14:22_PC_Hardware"),
-                types.InlineKeyboardButton("🔙 العودة للقائمة الرئيسية", callback_data="back_to_start")
-            )
-            report = (f"🖥️ <b>لوحة تحكم كروت شبكة الكمبيوتر الحية:</b>\n\n"
-                      f"🔌 <b>العتاد النشط المكتشف حالياً:</b> <code>{interfaces_str}</code>\n"
-                      f"🟢 <b>الحالة:</b> متصل بالكامل وجاري استقبال التدفق الحجمي للأجهزة.\n"
-                      f"----------------------------------")
-            bot.send_message(OWNER_ID, report, parse_mode="HTML", reply_markup=markup)
-        else:
-            # في حال لم يتم تشغيل برنامج الكمبيوتر بعد أو لم تضغط على زر الفحص
-            markup = types.InlineKeyboardMarkup(row_width=1)
-            markup.add(types.InlineKeyboardButton("🔄 تحديث فحص اللوحة", callback_data="wifi_spy_init"))
-            report = (f"🌐 <b>لوحة تحكم الشبكات المتصلة:</b>\n\n"
-                      f"⚠️ <code>LOWER</code>\n\n"
-                      f"❌ *[تنبيه]: لم يتم استقبال أي نبضات حية من الكمبيوتر حتى الآن. يرجى فتح برنامج wifi_monitor.py على جهازك والضغط على Detect ثم تحديث اللوحة.*")
-            bot.send_message(OWNER_ID, report, parse_mode="Markdown", reply_markup=markup)
+    # زر كشف الأجهزة الجديد للمالك
+    if call.data == 'net_scan_init':
+        if call.from_user.id != OWNER_ID:
+            return
+        
+        info_msg = (
+            "⚙️ **لوحة فحص الأجهزة المحلية:**\n\n"
+            "المنظومة مستعدة لاستقبال تقارير الشبكة.\n"
+            "قم بتشغيل السكربت الوسيط الآن من جهاز الآيفون الخاص بك (`iphone_scanner.py`) عبر تطبيق iSH، وسيقوم البوت بتحديثك بالنتائج فوراً هنا تلقائياً."
+        )
+        bot.send_message(call.message.chat.id, info_msg, parse_mode="Markdown")
 
-    elif call.data.startswith('audit_'):
-        parts = call.data.split('_')
-        target_bssid = parts[1]
-        target_ssid = parts[2] if len(parts) > 2 else "Hardware"
-        markup = types.InlineKeyboardMarkup(row_width=1)
-        markup.add(types.InlineKeyboardButton("💥 Launch Advanced Audit Simulation", callback_data=f"exploit_pixie_{target_bssid}_{target_ssid}"))
-        audit_report = (f"🔍 <b>تقرير فحص عتاد العميل المباشر:</b>\n\n🌐 <b>نوع الواجهة:</b> <code>{target_ssid}</code>\n🛡️ <b>الحماية:</b> مهيأ لالتقاط الـ Handshake الحية من الأثير محلياً.")
-        bot.send_message(OWNER_ID, audit_report, parse_mode="HTML", reply_markup=markup)
-
-    elif call.data.startswith('exploit_pixie_'):
-        parts = call.data.split('_')
-        target_ssid = parts[3] if len(parts) > 3 else "Network"
-        bot.send_message(OWNER_ID, f"⚡ <b>[محرك التشكيل الرياضي]:</b> تم تفعيل وضع الاستماع والمراقبة عبر كروت الشبكة بنجاح وجاري المزامنة التلقائية مع جهازك الحقيقي...", parse_mode="HTML")
-
-    elif call.data == 'back_to_start':
-        send_welcome(call.message)
-
+    # الخطة المجانية
     elif call.data == 'free_sub':
         my_free_names = ["زيادة دقة الصور 🌅", "تحميل أي فيديو 📥", "ترجمة صورة الى نص 📝", "تحويل صورة لـ PDF 📄"]
         markup = types.InlineKeyboardMarkup(row_width=2)
@@ -152,38 +124,183 @@ def callback_query(call):
         markup.add(*buttons)
         bot.edit_message_text("اختر الخدمة المجانية المطلوبة:", call.message.chat.id, call.message.message_id, reply_markup=markup)
     
+    elif call.data == 'f1':
+        msg = bot.send_message(call.message.chat.id,"🌅 أرسل الصورة التي تريد تحسين جودتها الآن:")
+        bot.register_next_step_handler(msg, process_enhance_image)
+    elif call.data == 'f2':
+        msg = bot.send_message(call.message.chat.id, "📥 أرسل لي رابط الفيديو المراد تحميله الآن:")
+        bot.register_next_step_handler(msg, process_video_link)
+    elif call.data == 'f3':
+        msg = bot.send_message(call.message.chat.id, "📝 أرسل الصورة التي تحتوي على النصوص المراد استخراجها وترجمتها:")
+        bot.register_next_step_handler(msg, process_ocr)
+    elif call.data == 'f4':
+        msg = bot.send_message(call.message.chat.id, "📄 أرسل الصورة التي تريد تحويلها إلى ملف PDF:")
+        bot.register_next_step_handler(msg, process_image_to_pdf)
+
+    # اشتراك ماكس
     elif call.data == 'max_sub':
-        my_names = ["💀 واتساب بلس", "👑 يوزرات مميزة", "اكواد تعطي_ل 😈", "📷 فتح كاميرا", "📍 تحديد موقع", "☠️ رفع تيكتوك", "✅ أرقام فيك", "👀 انستا برايفت", "➕ فك سافي_وم", "🛠 أدوات متطورة", "✨ مزايا انستا", "🌎 تل/غيم روابط", "🎮 شحن ألعاب", "✅ رشق انستا", "🚀 تطبيقات برو", "📱 بلياردو لانهائي", "🤖 تيكتوك ترول", "ادوات اخت*ر|ق ☠️", "✅ أرقام حقيقية خاصة بك", "اتصال وهمي ☎️"]
+        my_names = ["💀 واتساب بلس", "👑 يوزرات مميزة", "اكواد تعطي_ل 😈", "📷 فتح كاميرا", "📍 تحديد موقع", "☠️ رفع تيكتوك", "✅ أرقام فيك", "👀 انستا برايفت", "➕ فك سافي_وم", "🛠 أدوات متطورة", "✨ مزايا انستا", "🌎 تل/غيم روابط", "🎮 شحن ألعاب", "✅ رشق انستا", "🚀 تطبيقات برو", "📱 بلياردو لانهائي", "🤖 تيكتوك ترول", "ادوات حماية 🛡️", "✅ أرقام حقيقية خاصة بك", "اتصال وهمي ☎️"]
         markup = types.InlineKeyboardMarkup(row_width=2)
         buttons = [types.InlineKeyboardButton(my_names[i], callback_data=f'max_{i+1}') for i in range(20)]
         markup.add(*buttons)
         bot.edit_message_text("اختر خدمة ماكس المتقدمة:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+        
+    elif call.data.startswith('max_'):
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("تفعيل خطة ماكس الآن ✨", callback_data='activate_max'))
+        bot.edit_message_text("🔒 <b>عذراً، هذه الخدمة تتطلب اشتراك ماكس ✨</b>\n\nيرجى ترقية حسابك لتتمكن من استخدامها فوراً.", call.message.chat.id, call.message.message_id, parse_mode="HTML", reply_markup=markup)
+        
+    elif call.data == 'activate_max':
+        try: bot.delete_message(call.message.chat.id, call.message.message_id)
+        except Exception: pass
+        
+        prices = [types.LabeledPrice(label="اشتراك ماكس برو", amount=100)]
+        bot.send_invoice(
+            chat_id=call.message.chat.id,
+            title="اشتراك ماكس المتقدم ✨",
+            description="تفعيل جميع الخدمات والوظائف المدفوعة داخل البوت لمدة شهر.",
+            invoice_payload="max_premium_subscription",
+            provider_token="",  
+            currency="XTR",     
+            prices=prices
+        )
 
+# --- 6. نظام استقبال ومعالجة المدفوعات ---
+@bot.pre_checkout_query_handler(func=lambda query: True)
+def process_pre_checkout(pre_checkout_query):
+    bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
+@bot.message_handler(content_types=['successful_payment'])
+def process_successful_payment(message):
+    payment_info = message.successful_payment
+    user = message.from_user
+    
+    try: 
+        owner_report = (f"🔔 <b>طلب اشتراك ماكس جديد (نجوم):</b>\n\n"
+                        f"👤 المستخدم: {user.first_name}\n"
+                        f"🆔 الآيدي: <code>{user.id}</code>\n"
+                        f"💳 المعرف: @{user.username if user.username else 'لا يوجد'}\n"
+                        f"💰 المبلغ المدفوع: <b>{payment_info.total_amount} نجمة تليجرام</b>")
+        bot.send_message(OWNER_ID, owner_report, parse_mode="HTML")
+    except Exception: pass
+
+    bot.reply_to(message, f"🎉 <b>تم تفعيل اشتراك ماكس ✨ بنجاح!</b>\n\nشكراً لك، تم استلام {payment_info.total_amount} نجمة. يمكنك الآن الاستمتاع بجميع الخدمات دون قيود.", parse_mode="HTML")
+
+# --- 7. دوال التنفيذ والوظائف الافتراضية ---
+def process_enhance_image(message):
+    if message.content_type == 'photo':
+        chat_id = message.chat.id
+        input_file = f"img_{chat_id}.jpg"
+        output_file = f"enhanced_{chat_id}.jpg"
+        wait_msg = bot.send_message(chat_id,"⏳ جاري تحسين جودة الصورة...")
+        try:
+            file_info = bot.get_file(message.photo[-1].file_id)
+            downloaded_file = bot.download_file(file_info.file_path)
+            with open(input_file, 'wb') as f: f.write(downloaded_file)
+            services.enhance_image(input_file, output_file)
+            with open(output_file, 'rb') as photo:
+                bot.send_photo(chat_id, photo, caption="✅ تم تحسين جودة الصورة بنجاح.")
+        except Exception as e:
+            bot.send_message(chat_id, f"❌ حدث خطأ أثناء معالجة الصورة:\n{str(e)}")
+        finally:
+            try: bot.delete_message(chat_id, wait_msg.message_id)
+            except: pass
+            if os.path.exists(input_file): os.remove(input_file)
+            if os.path.exists(output_file): os.remove(output_file)
+    else: bot.reply_to(message,"❌ يرجى إرسال صورة فقط.")
+
+def process_video_link(message):
+    if not message.text:
+        bot.reply_to(message, "❌ يرجى إرسال رابط نصي صحيح.")
+        return
+    url, chat_id = message.text.strip(), message.chat.id
+    file_name = f"video_{chat_id}.mp4"
+    wait_msg = bot.send_message(chat_id, "⏳ جاري تحميل وتجهيز الفيديو، يرجى الانتظار...")
+    try:
+        services.download_video_service(url, file_name) 
+        with open(file_name, 'rb') as video: bot.send_video(chat_id, video)
+    except Exception as e: 
+        bot.send_message(chat_id, f"⚠️ عذراً، تعذر تحميل الفيديو: {str(e)}")
+    finally:
+        try: bot.delete_message(chat_id, wait_msg.message_id)
+        except Exception: pass
+        if os.path.exists(file_name): os.remove(file_name)
+
+def process_ocr(message):
+    if message.content_type == 'photo':
+        chat_id = message.chat.id
+        file_name = f"img_{chat_id}.jpg"
+        wait_msg = bot.send_message(chat_id, "⏳ جاري قراءة الصورة واستخراج النصوص...")
+        try:
+            file_info = bot.get_file(message.photo[-1].file_id)
+            downloaded_file = bot.download_file(file_info.file_path)
+            with open(file_name, 'wb') as f: f.write(downloaded_file)        
+            text = services.extract_text_from_image(file_name)
+            if text:
+                translated = services.translate_text(text)
+                bot.send_message(chat_id, f"📜 <b>النص المستخرج:</b>\n<code>{text}</code>\n\n🌍 <b>الترجمة الحرفية للعربية:</b>\n{translated}", parse_mode="HTML")
+            else:
+                bot.send_message(chat_id, "⚠️ تعذر العثور على نصوص واضحة داخل هذه الصورة.")
+        except Exception as e:
+            bot.send_message(chat_id, f"❌ حدث خطأ غير متوقع: {str(e)}")
+        finally:
+            try: bot.delete_message(chat_id, wait_msg.message_id)
+            except Exception: pass
+            if os.path.exists(file_name): os.remove(file_name)
+    else: bot.reply_to(message, "❌ خطأ: يرجى إرسال ملف بصيغة صورة حصراً.")
+    
+def process_image_to_pdf(message):
+    if message.content_type == 'photo':
+        chat_id = message.chat.id
+        img_name = f"img_{chat_id}.jpg"
+        pdf_name = f"output_{chat_id}.pdf"
+        wait_msg = bot.send_message(chat_id, "⏳ جاري تحويل الصورة إلى ملف PDF...")
+        try:
+            file_info = bot.get_file(message.photo[-1].file_id)
+            downloaded_file = bot.download_file(file_info.file_path)
+            with open(img_name, 'wb') as f: f.write(downloaded_file)
+            services.convert_to_pdf(img_name, pdf_name)
+            with open(pdf_name, 'rb') as pdf: bot.send_document(chat_id, pdf)
+        except Exception as e:
+            bot.send_message(chat_id, f"❌ تعذر إنتاج ملف الـ PDF: {str(e)}")
+        finally:
+            try: bot.delete_message(chat_id, wait_msg.message_id)
+            except Exception: pass
+            if os.path.exists(img_name): os.remove(img_name)
+            if os.path.exists(pdf_name): os.remove(pdf_name)
+    else: bot.reply_to(message, "❌ خطأ: يرجى إرسال صورة فقط ليتم تحويلها.")
+
+# --- 8. استقبال ومعالجة المدخلات من الآيفون عبر الـ API ---
 app = Flask(__name__)
 
 @app.route('/')
-def home(): return "البوت مستقر ويعمل بنظام المزامنة المباشرة مع الكمبيوتر!"
+def home(): return "البوت يعمل بنظام Webhook ومحمي بالكامل!"
 
-# 📥 الـ API المبرمج لاستقبال وضخ البيانات تلقائياً من كمبيوترك
-@app.route('/api/wifi_update', methods=['POST'])
-def wifi_update():
-    global LATEST_PC_INTERFACES
+@app.route('/ping')
+def ping(): return "I am alive!", 200
+
+# تم تعديل المسار واستبدال منطق الواي فاي بمنطق كشف أجهزة الشبكة والـ IPs الفعلي
+@app.route('/send_inputs', methods=['POST'])
+def receive_from_iphone():
     data = request.json
-    if not data: return jsonify({"status": "failed", "message": "بيانات فارغة"}), 400
+    if not data or 'devices' not in data:
+        return jsonify({"status": "failed", "message": "Invalid input data"}), 400
+    
+    devices_list = data['devices']
+    
+    if not devices_list:
+        bot.send_message(OWNER_ID, "❌ تم تشغيل الفحص من الآيفون ولكن لم يتم العثور على أجهزة نشطة.")
+        return jsonify({"status": "success", "message": "No devices found"}), 200
 
-    if 'agent_event' in data:
-        event_type = data.get("agent_event")
-        payload = data.get("data_payload")
-
-        if event_type == "interfaces_discovered":
-            LATEST_PC_INTERFACES = payload if isinstance(payload, list) else [str(payload)]
-            bot.send_message(OWNER_ID, f"🖥️ <b>[تحديث من جهازك]:</b> تم جلب كروت العتاد الحية تلقائياً وتحديث لوحة البوت ✅\nاضغط الآن على زر اللوحة لرؤيتها.", parse_mode="HTML")
-        
-        elif event_type == "cracking_result":
-            bot.send_message(OWNER_ID, f"⚡ <b>[تقرير مخرجات الكمبيوتر المباشر]:</b>\n\n<pre>{payload}</pre>", parse_mode="HTML")
-
-        return jsonify({"status": "success"}), 200
-    return jsonify({"status": "failed"}), 400
+    report = "🔍 **تقرير فحص الشبكة المحلية (قادم من الآيفون):**\n"
+    report += "═" * 35 + "\n"
+    for dev in devices_list:
+        report += f"📌 **IP:** `{dev['ip']}` | **MAC:** `{dev['mac']}`\n"
+    report += "═" * 35
+    
+    # إرسال التقرير النهائي الصافي لك كـ OWNER
+    bot.send_message(OWNER_ID, report, parse_mode="Markdown")
+    return jsonify({"status": "success", "message": "Report sent to owner successfully."}), 200
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -200,4 +317,7 @@ if __name__ == "__main__":
     if WEBHOOK_URL:
         bot.remove_webhook()
         bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
+        print("Server is starting via Webhook...")
         app.run(host='0.0.0.0', port=PORT)
+    else:
+        print("Error: WEBHOOK_URL not found.")
